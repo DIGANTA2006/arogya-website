@@ -240,3 +240,26 @@ header a[href="/portal"] {
 .floating-portal-login {
   display: none !important;
 }
+/* COPY_PROTECTION_STYLES */
+img,
+svg,
+picture {
+  -webkit-user-drag: none;
+  user-drag: none;
+}
+
+.no-copy,
+.protected-content {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+}
+
+input,
+textarea,
+select,
+button {
+  -webkit-user-select: auto;
+  -moz-user-select: auto;
+  user-select: auto;
+}
