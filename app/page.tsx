@@ -1,3 +1,4 @@
+import GallerySection from "@/components/gallery-section";
 import ReviewSection from "@/components/review-section";
 import Navbar from '@/components/navbar'
 import HeroSection from '@/components/hero-section'
@@ -31,6 +32,7 @@ export default function Home() {
       <VirtualCareSection />
       <AppointmentSection />
       <FaqSection />
+      <GallerySection />
       <ContactSection />
       <FinalCtaSection />
       <Footer />
