@@ -1,6 +1,6 @@
-﻿"use client";
+"use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import {
   CalendarDays,
@@ -9,25 +9,34 @@ import {
   FileText,
   LogOut,
   Monitor,
-  Phone,
-  User,
+  UserRound,
 } from "lucide-react";
 
 type Appointment = {
-  id: string;
-  service: string;
-  appointmentType: string;
-  date: string;
-  time: string;
+  id?: string;
+  service?: string;
+  appointmentType?: string;
+  appointment_type?: string;
+  date?: string;
+  appointmentDate?: string;
+  appointment_date?: string;
+  time?: string;
+  appointmentTime?: string;
+  appointment_time?: string;
   status?: string;
+  createdAt?: string;
+  created_at?: string;
 };
 
 type Prescription = {
-  id: string;
-  title: string;
-  createdAt: string;
+  id?: string;
+  title?: string;
+  createdAt?: string;
+  created_at?: string;
   downloadUrl?: string;
+  download_url?: string;
   qrUrl?: string;
+  qr_url?: string;
 };
 
 type Profile = {
@@ -55,6 +64,9 @@ export default function ClientDashboardPage() {
     message: "",
   });
 
+  const patientName = useMemo(() => profile?.name || "Patient", [profile]);
+  const patientEmail = useMemo(() => profile?.email || "Logged in patient", [profile]);
+
   function updateField(
     event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) {
@@ -69,13 +81,14 @@ export default function ClientDashboardPage() {
 
     if (response.ok) {
       const data = await response.json();
-      setProfile(data.profile || null);
+      const nextProfile = data.profile || null;
+      setProfile(nextProfile);
 
-      if (data.profile?.phone || data.profile?.age) {
+      if (nextProfile) {
         setForm((previous) => ({
           ...previous,
-          phone: data.profile.phone || previous.phone,
-          age: data.profile.age || previous.age,
+          phone: nextProfile.phone || previous.phone,
+          age: nextProfile.age || previous.age,
         }));
       }
     }
@@ -110,12 +123,21 @@ export default function ClientDashboardPage() {
     setLoading(true);
     setStatus("");
 
+    const payload = {
+      ...form,
+      appointment_type: form.appointmentType,
+      appointmentDate: form.date,
+      appointment_date: form.date,
+      appointmentTime: form.time,
+      appointment_time: form.time,
+    };
+
     const response = await fetch("/api/client/appointments", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(form),
+      body: JSON.stringify(payload),
     });
 
     const data = await response.json().catch(() => ({}));
@@ -149,7 +171,7 @@ export default function ClientDashboardPage() {
       <header className="client-dashboard-header">
         <div className="client-dashboard-container header-inner">
           <div>
-            <span className="dashboard-chip">Patient Portal</span>
+            <span className="dashboard-chip dashboard-chip-light">Patient Portal</span>
             <h1>Patient Dashboard</h1>
             <p>Book appointments, track status, and download prescriptions.</p>
           </div>
@@ -174,11 +196,11 @@ export default function ClientDashboardPage() {
       <section className="client-dashboard-container dashboard-grid">
         <aside className="profile-card">
           <div className="profile-avatar">
-            <User size={32} />
+            <UserRound size={34} />
           </div>
 
-          <h2>{profile?.name || "Patient"}</h2>
-          <p>{profile?.email || "Logged in patient"}</p>
+          <h2>{patientName}</h2>
+          <p>{patientEmail}</p>
 
           <div className="profile-info">
             <InfoRow label="Mobile" value={profile?.phone || form.phone || "Not added"} />
@@ -194,6 +216,10 @@ export default function ClientDashboardPage() {
               Google login is active. Add/verify mobile number before final patient use.
             </div>
           )}
+
+          <a href="/client/profile" className="edit-profile-link">
+            Edit Profile
+          </a>
         </aside>
 
         <section className="booking-card">
@@ -300,15 +326,24 @@ export default function ClientDashboardPage() {
             <EmptyState text="No appointments found." />
           ) : (
             <div className="item-list">
-              {appointments.map((appointment) => (
-                <article key={appointment.id} className="history-item">
-                  <strong>{appointment.service}</strong>
-                  <p>
-                    {appointment.appointmentType} · {appointment.date} · {appointment.time}
-                  </p>
-                  <span>{appointment.status || "New"}</span>
-                </article>
-              ))}
+              {appointments.map((appointment, index) => {
+                const appointmentType =
+                  appointment.appointmentType || appointment.appointment_type || "Appointment";
+                const appointmentDate =
+                  appointment.date || appointment.appointmentDate || appointment.appointment_date || "-";
+                const appointmentTime =
+                  appointment.time || appointment.appointmentTime || appointment.appointment_time || "-";
+
+                return (
+                  <article key={appointment.id || index} className="history-item">
+                    <strong>{appointment.service || "Clinic Appointment"}</strong>
+                    <p>
+                      {appointmentType} · {appointmentDate} · {appointmentTime}
+                    </p>
+                    <span>{appointment.status || "New"}</span>
+                  </article>
+                );
+              })}
             </div>
           )}
         </section>
@@ -326,27 +361,35 @@ export default function ClientDashboardPage() {
             <EmptyState text="No prescriptions uploaded yet." />
           ) : (
             <div className="item-list">
-              {prescriptions.map((prescription) => (
-                <article key={prescription.id} className="history-item">
-                  <strong>{prescription.title}</strong>
-                  <p>Uploaded: {new Date(prescription.createdAt).toLocaleDateString()}</p>
+              {prescriptions.map((prescription, index) => {
+                const downloadUrl = prescription.downloadUrl || prescription.download_url;
+                const qrUrl = prescription.qrUrl || prescription.qr_url;
+                const createdAt = prescription.createdAt || prescription.created_at;
 
-                  <div className="prescription-actions">
-                    {prescription.downloadUrl && (
-                      <a href={prescription.downloadUrl} className="dash-btn dash-btn-dark">
-                        <Download size={15} />
-                        Download PDF
-                      </a>
-                    )}
+                return (
+                  <article key={prescription.id || index} className="history-item">
+                    <strong>{prescription.title || "Prescription"}</strong>
+                    <p>
+                      Uploaded: {createdAt ? new Date(createdAt).toLocaleDateString() : "-"}
+                    </p>
 
-                    {prescription.qrUrl && (
-                      <a href={prescription.qrUrl} target="_blank" className="dash-btn dash-btn-light">
-                        Open QR
-                      </a>
-                    )}
-                  </div>
-                </article>
-              ))}
+                    <div className="prescription-actions">
+                      {downloadUrl && (
+                        <a href={downloadUrl} className="dash-btn dash-btn-dark">
+                          <Download size={15} />
+                          Download PDF
+                        </a>
+                      )}
+
+                      {qrUrl && (
+                        <a href={qrUrl} target="_blank" className="dash-btn dash-btn-light">
+                          Open QR
+                        </a>
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           )}
         </section>
@@ -406,6 +449,12 @@ export default function ClientDashboardPage() {
           text-transform: uppercase;
         }
 
+        .dashboard-chip-light {
+          background: rgba(255, 255, 255, 0.18);
+          color: white;
+          border: 1px solid rgba(255, 255, 255, 0.28);
+        }
+
         .header-actions {
           display: flex;
           gap: 10px;
@@ -424,11 +473,6 @@ export default function ClientDashboardPage() {
           text-decoration: none;
           font-weight: 900;
           cursor: pointer;
-          transition: transform 0.18s ease, box-shadow 0.18s ease;
-        }
-
-        .dash-btn:hover {
-          transform: translateY(-1px);
         }
 
         .dash-btn-light {
@@ -445,25 +489,31 @@ export default function ClientDashboardPage() {
 
         .dashboard-grid {
           display: grid;
-          grid-template-columns: 330px 1fr;
+          grid-template-columns: 330px minmax(0, 1fr);
           gap: 24px;
           padding: 32px 0 56px;
+          align-items: start;
+        }
+
+        .profile-card {
+          grid-row: 1 / span 3;
+          align-self: start;
         }
 
         .profile-card,
         .booking-card,
         .list-card {
-          background: rgba(255, 255, 255, 0.92);
+          background: rgba(255, 255, 255, 0.94);
           border: 1px solid #dbeafe;
           border-radius: 28px;
           box-shadow: 0 20px 60px rgba(15, 23, 42, 0.08);
           padding: 26px;
+          min-width: 0;
         }
 
-        .profile-card {
-          align-self: start;
-          position: sticky;
-          top: 24px;
+        .booking-card,
+        .list-card {
+          grid-column: 2;
         }
 
         .profile-avatar {
@@ -523,12 +573,15 @@ export default function ClientDashboardPage() {
           line-height: 1.6;
         }
 
-        .booking-card {
-          grid-column: 2;
-        }
-
-        .list-card {
-          min-height: 260px;
+        .edit-profile-link {
+          margin-top: 16px;
+          display: inline-flex;
+          border-radius: 999px;
+          padding: 12px 18px;
+          background: #e0f2fe;
+          color: #0369a1;
+          text-decoration: none;
+          font-weight: 900;
         }
 
         .section-title-row {
@@ -568,7 +621,6 @@ export default function ClientDashboardPage() {
           color: #0f172a;
           font-size: 16px;
           outline: none;
-          transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
         }
 
         .appointment-form input:focus,
@@ -665,12 +717,11 @@ export default function ClientDashboardPage() {
             grid-template-columns: 1fr;
           }
 
-          .booking-card {
+          .profile-card,
+          .booking-card,
+          .list-card {
             grid-column: auto;
-          }
-
-          .profile-card {
-            position: static;
+            grid-row: auto;
           }
         }
 
