@@ -39,9 +39,9 @@ export default function GallerySection() {
       <div className="gallery-container">
         <div className="gallery-heading">
           <span>Clinic Gallery</span>
-          <h2>Moments from our clinic</h2>
+          <h2>Clinic, patients and care moments</h2>
           <p>
-            View clinic photos, therapy moments, hearing care support, and patient-friendly facilities.
+            Add clinic photos, therapy session photos, hearing care photos, patient care moments and clinic place images here.
           </p>
         </div>
 
@@ -70,7 +70,7 @@ export default function GallerySection() {
       <style>{`
         .gallery-section {
           background:
-            radial-gradient(circle at top left, rgba(14, 165, 233, 0.12), transparent 30%),
+            radial-gradient(circle at top left, rgba(14, 165, 233, 0.14), transparent 30%),
             linear-gradient(135deg, #f8fbff 0%, #eef8ff 48%, #f8fafc 100%);
           padding: 92px 0;
         }
@@ -119,17 +119,11 @@ export default function GallerySection() {
         }
 
         .gallery-card {
-          background: rgba(255, 255, 255, 0.95);
+          background: rgba(255, 255, 255, 0.96);
           border: 1px solid #dbeafe;
           border-radius: 28px;
           overflow: hidden;
           box-shadow: 0 20px 60px rgba(15, 23, 42, 0.08);
-          transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-
-        .gallery-card:hover {
-          transform: translateY(-4px);
-          box-shadow: 0 26px 70px rgba(15, 23, 42, 0.12);
         }
 
         .gallery-image-wrap {

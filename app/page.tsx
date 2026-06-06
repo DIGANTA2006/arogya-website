@@ -23,6 +23,7 @@ export default function Home() {
     <main>
       <Navbar />
       <HeroSection />
+      <GallerySection />
       <AboutSection />
       <ServicesSection />
       <ConditionsSection />
@@ -32,7 +33,7 @@ export default function Home() {
       <VirtualCareSection />
       <AppointmentSection />
       <FaqSection />
-      <GallerySection />
+      
       <ContactSection />
       <FinalCtaSection />
       <Footer />

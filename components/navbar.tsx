@@ -8,6 +8,7 @@ const navLinks = [
   { label: "About", href: "#about" },
   { label: "Services", href: "#services" },
   { label: "Hearing Aids", href: "#hearing-aids" },
+  { label: "Gallery", href: "#gallery" },
   { label: "Appointment", href: "#appointment" },
   { label: "Contact", href: "#contact" },
 ];
