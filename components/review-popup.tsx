@@ -3,40 +3,16 @@
 import { useEffect, useMemo, useState } from "react";
 
 const ratingOptions = [
-  {
-    value: 5,
-    emoji: "😍",
-    label: "Excellent",
-    text: "Loved the experience",
-  },
-  {
-    value: 4,
-    emoji: "😊",
-    label: "Good",
-    text: "Good experience",
-  },
-  {
-    value: 3,
-    emoji: "🙂",
-    label: "Average",
-    text: "It was okay",
-  },
-  {
-    value: 2,
-    emoji: "😕",
-    label: "Poor",
-    text: "Needs improvement",
-  },
-  {
-    value: 1,
-    emoji: "😟",
-    label: "Bad",
-    text: "Not satisfied",
-  },
+  { value: 5, emoji: "😍", label: "Excellent" },
+  { value: 4, emoji: "😊", label: "Good" },
+  { value: 3, emoji: "🙂", label: "Average" },
+  { value: 2, emoji: "😕", label: "Poor" },
+  { value: 1, emoji: "😟", label: "Bad" },
 ];
 
-const STORAGE_KEY = "arogya_review_popup_status";
-const LAST_SHOWN_KEY = "arogya_review_popup_last_shown";
+const SUBMITTED_KEY = "arogya_review_submitted";
+const LAST_SHOWN_KEY = "arogya_review_last_shown";
+const DISMISSED_KEY = "arogya_review_dismissed_today";
 
 export default function ReviewPopup() {
   const [open, setOpen] = useState(false);
@@ -56,16 +32,14 @@ export default function ReviewPopup() {
   function canShowPopup() {
     if (typeof window === "undefined") return false;
 
-    const submitted = localStorage.getItem(STORAGE_KEY);
+    const submitted = localStorage.getItem(SUBMITTED_KEY);
+    if (submitted === "true") return false;
 
-    if (submitted === "submitted") {
-      return false;
-    }
-
+    const dismissed = localStorage.getItem(DISMISSED_KEY);
     const lastShown = Number(localStorage.getItem(LAST_SHOWN_KEY) || "0");
     const oneDay = 24 * 60 * 60 * 1000;
 
-    if (lastShown && Date.now() - lastShown < oneDay) {
+    if (dismissed === "true" && lastShown && Date.now() - lastShown < oneDay) {
       return false;
     }
 
@@ -79,12 +53,19 @@ export default function ReviewPopup() {
     setOpen(true);
 
     if (reason === "appointment") {
-      setStatus("Your appointment is booked. Please share your experience with the website.");
+      setStatus("Your appointment is booked. Please share your website experience.");
     }
   }
 
+  function closePopup() {
+    localStorage.setItem(DISMISSED_KEY, "true");
+    localStorage.setItem(LAST_SHOWN_KEY, String(Date.now()));
+    setOpen(false);
+    setStatus("");
+  }
+
   useEffect(() => {
-    const timeSpentTimer = window.setTimeout(() => {
+    const timeTimer = window.setTimeout(() => {
       showPopup("time");
     }, 45000);
 
@@ -94,57 +75,27 @@ export default function ReviewPopup() {
       }
     }
 
-    function handleAppointmentSuccess() {
+    function handleAppointmentBooked() {
       window.setTimeout(() => {
         showPopup("appointment");
       }, 1200);
     }
 
-    const originalFetch = window.fetch.bind(window);
-
-    window.fetch = async (...args) => {
-      const response = await originalFetch(...args);
-
-      try {
-        const requestUrl =
-          typeof args[0] === "string"
-            ? args[0]
-            : args[0] instanceof Request
-              ? args[0].url
-              : "";
-
-        const method =
-          args[1]?.method ||
-          (args[0] instanceof Request ? args[0].method : "GET");
-
-        if (
-          requestUrl.includes("/api/client/appointments") &&
-          String(method).toUpperCase() === "POST" &&
-          response.ok
-        ) {
-          window.dispatchEvent(new Event("arogya-appointment-booked"));
-        }
-      } catch {
-        // Ignore fetch observer errors.
-      }
-
-      return response;
-    };
+    function handleManualOpen() {
+      showPopup("manual");
+    }
 
     document.addEventListener("mouseleave", handleExitIntent);
-    window.addEventListener("arogya-appointment-booked", handleAppointmentSuccess);
+    window.addEventListener("arogya-appointment-booked", handleAppointmentBooked);
+    window.addEventListener("arogya-open-review-popup", handleManualOpen);
 
     return () => {
-      window.clearTimeout(timeSpentTimer);
+      window.clearTimeout(timeTimer);
       document.removeEventListener("mouseleave", handleExitIntent);
-      window.removeEventListener("arogya-appointment-booked", handleAppointmentSuccess);
-      window.fetch = originalFetch;
+      window.removeEventListener("arogya-appointment-booked", handleAppointmentBooked);
+      window.removeEventListener("arogya-open-review-popup", handleManualOpen);
     };
   }, []);
-
-  function closePopup() {
-    setOpen(false);
-  }
 
   async function submitReview(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -163,21 +114,27 @@ export default function ReviewPopup() {
       }),
     });
 
-    const data = await response.json();
+    const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      setStatus(data.error || "Review could not be submitted.");
+      setStatus(data.error || data.detail || "Review could not be submitted.");
       setLoading(false);
       return;
     }
 
-    localStorage.setItem(STORAGE_KEY, "submitted");
-    setStatus("Thank you. Your review has been submitted for approval.");
+    localStorage.setItem(SUBMITTED_KEY, "true");
+    setStatus(data.message || "Thank you. Your review has been submitted for approval.");
 
     window.setTimeout(() => {
       setOpen(false);
       setLoading(false);
-    }, 1200);
+      setForm({
+        name: "",
+        message: "",
+      });
+      setRating(5);
+      setStatus("");
+    }, 1600);
   }
 
   if (!open) {
@@ -185,157 +142,279 @@ export default function ReviewPopup() {
   }
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 9999,
-        background: "rgba(15, 23, 42, 0.48)",
-        display: "grid",
-        placeItems: "center",
-        padding: 18,
-        backdropFilter: "blur(8px)",
-      }}
-      role="dialog"
-      aria-modal="true"
-      aria-label="Patient review popup"
-    >
-      <div
-        style={{
-          width: "min(560px, 100%)",
-          borderRadius: 28,
-          background: "linear-gradient(145deg, #ffffff, #f0f9ff)",
-          border: "1px solid #dbeafe",
-          boxShadow: "0 30px 90px rgba(15, 23, 42, 0.28)",
-          overflow: "hidden",
-        }}
-      >
-        <div
-          style={{
-            padding: "24px 26px",
-            background: "linear-gradient(135deg, #0284c7, #0f766e)",
-            color: "white",
-            position: "relative",
-          }}
-        >
-          <button
-            type="button"
-            onClick={closePopup}
-            aria-label="Close review popup"
-            style={{
-              position: "absolute",
-              top: 14,
-              right: 16,
-              width: 36,
-              height: 36,
-              borderRadius: 999,
-              border: "1px solid rgba(255,255,255,0.32)",
-              background: "rgba(255,255,255,0.16)",
-              color: "white",
-              fontWeight: 900,
-              cursor: "pointer",
-            }}
-          >
-            ×
-          </button>
+    <div className="review-popup-backdrop" role="dialog" aria-modal="true">
+      <section className="review-popup-card">
+        <button type="button" className="review-popup-close" onClick={closePopup}>
+          ×
+        </button>
 
-          <div style={{ fontSize: 38, marginBottom: 10 }}>{selectedRating.emoji}</div>
-          <h2 style={{ margin: 0, fontSize: 30, lineHeight: 1.1 }}>
-            How was your experience?
-          </h2>
-          <p style={{ margin: "10px 0 0", opacity: 0.92, lineHeight: 1.6 }}>
-            Your feedback helps Arogya improve patient service.
+        <div className="review-popup-top">
+          <div className="review-popup-emoji">{selectedRating.emoji}</div>
+          <span>Patient Feedback</span>
+          <h2>How was your experience?</h2>
+          <p>
+            Your feedback helps Arogya improve patient service. Reviews are checked before publishing.
           </p>
         </div>
 
-        <form onSubmit={submitReview} style={{ padding: 26, display: "grid", gap: 16 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10 }}>
+        <form onSubmit={submitReview} className="review-popup-form">
+          <div className="review-popup-ratings">
             {ratingOptions.map((item) => (
               <button
                 key={item.value}
                 type="button"
                 onClick={() => setRating(item.value)}
-                style={{
-                  border: rating === item.value ? "2px solid #0284c7" : "1px solid #cbd5e1",
-                  background: rating === item.value ? "#e0f2fe" : "white",
-                  borderRadius: 18,
-                  padding: "12px 6px",
-                  cursor: "pointer",
-                  display: "grid",
-                  gap: 5,
-                  justifyItems: "center",
-                  boxShadow:
-                    rating === item.value
-                      ? "0 12px 24px rgba(2, 132, 199, 0.16)"
-                      : "none",
-                }}
+                className={rating === item.value ? "rating-option active" : "rating-option"}
               >
-                <span style={{ fontSize: 28 }}>{item.emoji}</span>
-                <span style={{ fontSize: 11, fontWeight: 900, color: "#0f172a" }}>
-                  {item.label}
-                </span>
+                <span>{item.emoji}</span>
+                <strong>{item.label}</strong>
               </button>
             ))}
           </div>
 
-          <input
-            className="field"
-            placeholder="Your name"
-            value={form.name}
-            onChange={(event) =>
-              setForm({
-                ...form,
-                name: event.target.value,
-              })
-            }
-            required
-          />
+          <label>
+            Your Name
+            <input
+              value={form.name}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  name: event.target.value,
+                })
+              }
+              placeholder="Enter your name"
+              required
+            />
+          </label>
 
-          <textarea
-            className="field"
-            placeholder="Write your experience..."
-            rows={4}
-            value={form.message}
-            onChange={(event) =>
-              setForm({
-                ...form,
-                message: event.target.value,
-              })
-            }
-            required
-          />
+          <label>
+            Your Review
+            <textarea
+              value={form.message}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  message: event.target.value,
+                })
+              }
+              placeholder="Write your experience..."
+              rows={4}
+              required
+            />
+          </label>
 
-          <button className="btn-primary" type="submit" disabled={loading}>
+          <button className="review-submit-btn" type="submit" disabled={loading}>
             {loading ? "Submitting..." : "Submit Review"}
           </button>
 
           {status && (
-            <p
-              style={{
-                margin: 0,
-                fontWeight: 800,
-                color: status.includes("Thank") ? "#15803d" : "#b91c1c",
-              }}
-            >
+            <p className={status.toLowerCase().includes("thank") ? "review-success" : "review-error"}>
               {status}
             </p>
           )}
 
-          <button
-            type="button"
-            onClick={closePopup}
-            style={{
-              border: "none",
-              background: "transparent",
-              color: "#64748b",
-              fontWeight: 800,
-              cursor: "pointer",
-            }}
-          >
+          <button type="button" className="review-later-btn" onClick={closePopup}>
             Maybe later
           </button>
         </form>
-      </div>
+      </section>
+
+      <style>{`
+        .review-popup-backdrop {
+          position: fixed;
+          inset: 0;
+          z-index: 99999;
+          background: rgba(15, 23, 42, 0.52);
+          display: grid;
+          place-items: center;
+          padding: 18px;
+          backdrop-filter: blur(8px);
+        }
+
+        .review-popup-card {
+          width: min(620px, 100%);
+          max-height: min(92vh, 820px);
+          overflow: auto;
+          background: rgba(255, 255, 255, 0.98);
+          border: 1px solid #dbeafe;
+          border-radius: 32px;
+          box-shadow: 0 32px 100px rgba(15, 23, 42, 0.28);
+          position: relative;
+        }
+
+        .review-popup-close {
+          position: absolute;
+          top: 16px;
+          right: 16px;
+          width: 40px;
+          height: 40px;
+          border-radius: 999px;
+          border: none;
+          background: rgba(15, 23, 42, 0.92);
+          color: white;
+          font-size: 26px;
+          cursor: pointer;
+          z-index: 2;
+        }
+
+        .review-popup-top {
+          padding: 28px 30px;
+          background: linear-gradient(135deg, #0057b8, #008f8f);
+          color: white;
+        }
+
+        .review-popup-emoji {
+          font-size: 42px;
+          margin-bottom: 8px;
+        }
+
+        .review-popup-top span {
+          display: inline-flex;
+          border-radius: 999px;
+          padding: 7px 12px;
+          background: rgba(255, 255, 255, 0.16);
+          border: 1px solid rgba(255, 255, 255, 0.28);
+          font-size: 12px;
+          font-weight: 950;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+        }
+
+        .review-popup-top h2 {
+          font-size: clamp(30px, 6vw, 46px);
+          margin: 16px 0 10px;
+          letter-spacing: -1px;
+        }
+
+        .review-popup-top p {
+          margin: 0;
+          color: rgba(255, 255, 255, 0.88);
+          line-height: 1.7;
+          font-weight: 650;
+        }
+
+        .review-popup-form {
+          padding: 28px 30px 30px;
+          display: grid;
+          gap: 16px;
+        }
+
+        .review-popup-ratings {
+          display: grid;
+          grid-template-columns: repeat(5, 1fr);
+          gap: 10px;
+        }
+
+        .rating-option {
+          border: 1px solid #cbd5e1;
+          border-radius: 18px;
+          background: white;
+          padding: 12px 8px;
+          display: grid;
+          gap: 5px;
+          justify-items: center;
+          cursor: pointer;
+          color: #0f172a;
+        }
+
+        .rating-option.active {
+          border: 2px solid #0284c7;
+          background: #e0f2fe;
+          box-shadow: 0 12px 28px rgba(2, 132, 199, 0.16);
+        }
+
+        .rating-option span {
+          font-size: 28px;
+        }
+
+        .rating-option strong {
+          font-size: 11px;
+        }
+
+        .review-popup-form label {
+          display: grid;
+          gap: 8px;
+          font-weight: 900;
+          color: #334155;
+        }
+
+        .review-popup-form input,
+        .review-popup-form textarea {
+          width: 100%;
+          border: 1px solid #cbd5e1;
+          border-radius: 18px;
+          background: #f8fafc;
+          padding: 15px 16px;
+          color: #0f172a;
+          font-size: 16px;
+          outline: none;
+        }
+
+        .review-popup-form input:focus,
+        .review-popup-form textarea:focus {
+          border-color: #0284c7;
+          background: white;
+          box-shadow: 0 0 0 4px rgba(2, 132, 199, 0.12);
+        }
+
+        .review-submit-btn {
+          border: none;
+          border-radius: 999px;
+          padding: 16px 22px;
+          background: linear-gradient(135deg, #f97316, #fb923c);
+          color: white;
+          font-weight: 950;
+          font-size: 16px;
+          cursor: pointer;
+          box-shadow: 0 16px 36px rgba(249, 115, 22, 0.26);
+        }
+
+        .review-submit-btn:disabled {
+          opacity: 0.65;
+          cursor: not-allowed;
+        }
+
+        .review-later-btn {
+          border: none;
+          background: transparent;
+          color: #64748b;
+          font-weight: 900;
+          cursor: pointer;
+        }
+
+        .review-success {
+          color: #15803d;
+          font-weight: 900;
+          margin: 0;
+        }
+
+        .review-error {
+          color: #b91c1c;
+          font-weight: 900;
+          margin: 0;
+        }
+
+        @media (max-width: 620px) {
+          .review-popup-card {
+            border-radius: 24px;
+          }
+
+          .review-popup-top,
+          .review-popup-form {
+            padding: 22px;
+          }
+
+          .review-popup-ratings {
+            grid-template-columns: 1fr;
+          }
+
+          .rating-option {
+            grid-template-columns: 40px 1fr;
+            justify-items: start;
+            align-items: center;
+          }
+        }
+      `}</style>
     </div>
   );
 }

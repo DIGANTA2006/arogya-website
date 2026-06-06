@@ -182,6 +182,19 @@ export default function ClientProfilePage() {
                 {status}
               </p>
             )}
+          
+            <button
+              type="button"
+              className="profile-rating-btn"
+              onClick={() => {
+                localStorage.removeItem("arogya_review_submitted");
+                localStorage.removeItem("arogya_review_dismissed_today");
+                localStorage.removeItem("arogya_review_last_shown");
+                window.dispatchEvent(new Event("arogya-open-review-popup"));
+              }}
+            >
+              ⭐ Give Rating / Review
+            </button>
           </form>
         </section>
       </section>
@@ -452,6 +465,22 @@ export default function ClientProfilePage() {
           .profile-actions a {
             width: 100%;
           }
+        }
+        /* PROFILE_RATING_BUTTON_STYLE */
+        .profile-rating-btn {
+          border: none;
+          border-radius: 999px;
+          padding: 16px 22px;
+          background: linear-gradient(135deg, #0057b8, #00a6a6);
+          color: white;
+          font-weight: 950;
+          font-size: 16px;
+          cursor: pointer;
+          box-shadow: 0 16px 36px rgba(0, 87, 184, 0.24);
+        }
+
+        .profile-rating-btn:hover {
+          transform: translateY(-1px);
         }
       `}</style>
     </main>

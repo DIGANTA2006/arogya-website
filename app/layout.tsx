@@ -1,5 +1,5 @@
-import SiteCopyProtection from "@/components/site-copy-protection";
 import ReviewPopup from "@/components/review-popup";
+import SiteCopyProtection from "@/components/site-copy-protection";
 import type { Metadata } from "next";
 import "./globals.css";
 
@@ -77,8 +77,10 @@ export default function RootLayout({
           }}
         />
         {children}
-              <ReviewPopup />
+              
               <SiteCopyProtection />
+              
+              <ReviewPopup />
       </body>
     </html>
   );
