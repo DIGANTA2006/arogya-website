@@ -1,25 +1,10 @@
 "use client";
 
-import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
+import type { CSSProperties } from "react";
 
 export default function SocialLoginButtons() {
-  async function loginWithGoogle() {
-    const supabase = createSupabaseBrowserClient();
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
-
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${siteUrl}/auth/callback`,
-        queryParams: {
-          prompt: "select_account",
-        },
-      },
-    });
-
-    if (error) {
-      alert(error.message);
-    }
+  function loginWithGoogle() {
+    window.location.href = "/api/auth/google";
   }
 
   return (
@@ -48,7 +33,7 @@ export default function SocialLoginButtons() {
   );
 }
 
-const googleButton: React.CSSProperties = {
+const googleButton: CSSProperties = {
   width: "100%",
   border: "1px solid #dbeafe",
   borderRadius: 16,
@@ -64,7 +49,7 @@ const googleButton: React.CSSProperties = {
   boxShadow: "0 12px 28px rgba(15, 23, 42, 0.10)",
 };
 
-const googleIcon: React.CSSProperties = {
+const googleIcon: CSSProperties = {
   width: 26,
   height: 26,
   borderRadius: 999,
