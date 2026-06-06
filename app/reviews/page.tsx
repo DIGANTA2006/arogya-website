@@ -15,19 +15,8 @@ export default function ReviewsPage() {
   }, []);
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background: "#f8fbff",
-      }}
-    >
-      <div
-        style={{
-          height: 18,
-          background: "#001b31",
-          width: "100%",
-        }}
-      />
+    <main style={{ minHeight: "100vh", background: "#f8fbff" }}>
+      <div style={{ height: 18, background: "#001b31", width: "100%" }} />
     </main>
   );
 }

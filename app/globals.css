@@ -499,3 +499,16 @@ button {
     max-height: calc(100dvh - 20px) !important;
   }
 }
+/* HIDE_PUBLIC_REVIEW_SECTIONS_FINAL */
+/* Hide old visible review section from homepage, but do NOT hide popup/admin */
+.home-review-section,
+.home-reviews-section,
+.patient-review-section,
+.patient-reviews-section,
+.review-section:not(.review-popup-card):not(.review-modal):not(.review-popup-backdrop),
+.reviews-section:not(.review-popup-card):not(.review-modal):not(.review-popup-backdrop),
+.testimonials-section,
+#reviews,
+#patient-reviews {
+  display: none !important;
+}
