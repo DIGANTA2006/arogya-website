@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MessageCircle, Phone, Send, X } from "lucide-react";
 
 type Message = { from: "bot" | "user"; text: string };
@@ -26,18 +26,23 @@ function getBotAnswer(question: string) {
   if (text.includes("appointment") || text.includes("book")) {
     return "To book online, please login or create a patient account first. You can choose clinic visit or online consultation from your dashboard.";
   }
+
   if (text.includes("online") || text.includes("video") || text.includes("virtual")) {
-    return "Online consultation can be requested for follow-up, speech therapy guidance, parent counselling and report discussion. The clinic may suggest physical visit when needed.";
+    return "Online consultation can be requested for follow-up, speech therapy guidance, parent counselling and report discussion. The clinic may suggest a physical visit when needed.";
   }
+
   if (text.includes("service") || text.includes("available")) {
     return "Services include speech therapy, child speech development, voice therapy, audiometry testing, hearing aid consultation and digital hearing aid support.";
   }
+
   if (text.includes("time") || text.includes("timing") || text.includes("open")) {
     return "Clinic timing is Monday to Saturday, 11:00 AM to 8:00 PM. Please confirm by call or WhatsApp before visiting.";
   }
+
   if (text.includes("fee") || text.includes("price") || text.includes("cost")) {
     return "Consultation fee depends on the service. The clinic team can share exact fee during appointment confirmation.";
   }
+
   if (text.includes("emergency") || text.includes("urgent")) {
     return "For emergency or serious medical problems, please visit the nearest hospital immediately. This bot gives only basic clinic information.";
   }
@@ -48,53 +53,88 @@ function getBotAnswer(question: string) {
 export default function ChatBot() {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+
   const [messages, setMessages] = useState<Message[]>([
-    { from: "bot", text: "Hello! I can help with appointments, services, timings and online consultation." },
+    {
+      from: "bot",
+      text: "Hello! I can help with appointments, services, timings and online consultation.",
+    },
   ]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, open]);
 
   function sendMessage(textValue?: string) {
     const question = textValue || input;
-    if (!question.trim()) return;
+
+    if (!question.trim()) {
+      return;
+    }
+
     setMessages((previous) => [
       ...previous,
       { from: "user", text: question },
       { from: "bot", text: getBotAnswer(question) },
     ]);
+
     setInput("");
   }
 
   return (
-    <div className="fixed bottom-4 right-4 z-[60] flex flex-col items-end gap-2 mobile-safe-bottom">
+    <div className="fixed bottom-4 right-4 z-[70] flex max-w-[calc(100vw-1.5rem)] flex-col items-end gap-2 mobile-safe-bottom sm:right-5">
       {open && (
-        <div className="mb-2 w-[min(380px,calc(100vw-2rem))] overflow-hidden rounded-[1.45rem] border border-border bg-white shadow-2xl">
-          <div className="flex items-center justify-between gap-3 bg-primary p-4 text-primary-foreground">
+        <section className="mb-3 flex h-[min(620px,calc(100dvh-7.5rem))] w-[min(430px,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-[1.5rem] border border-border bg-white shadow-2xl">
+          <div className="flex shrink-0 items-center justify-between gap-3 bg-primary p-4 text-primary-foreground">
             <div>
-              <strong>Clinic Help Bot</strong>
+              <strong className="text-base">Clinic Help Bot</strong>
               <p className="mt-1 text-xs opacity-85">Basic appointment and service support</p>
             </div>
-            <button onClick={() => setOpen(false)} className="grid h-9 w-9 place-items-center rounded-full bg-white/15" aria-label="Close chatbot">
+
+            <button
+              onClick={() => setOpen(false)}
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/15"
+              aria-label="Close chatbot"
+            >
               <X size={18} />
             </button>
           </div>
 
-          <div className="max-h-[42vh] overflow-y-auto bg-secondary/50 p-4 sm:h-72">
+          <div className="min-h-0 flex-1 overflow-y-auto bg-secondary/50 p-4">
             {messages.map((message, index) => (
-              <div key={`${message.from}-${index}`} className={`mb-3 flex ${message.from === "user" ? "justify-end" : "justify-start"}`}>
-                <div className={`max-w-[82%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${message.from === "user" ? "bg-primary text-primary-foreground" : "border border-border bg-white text-foreground"}`}>
+              <div
+                key={`${message.from}-${index}`}
+                className={`mb-3 flex ${message.from === "user" ? "justify-end" : "justify-start"}`}
+              >
+                <div
+                  className={`max-w-[82%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${
+                    message.from === "user"
+                      ? "bg-primary text-primary-foreground"
+                      : "border border-border bg-white text-foreground"
+                  }`}
+                >
                   {message.text}
                 </div>
               </div>
             ))}
+
+            <div ref={bottomRef} />
           </div>
 
-          <div className="grid gap-3 p-3">
-            <div className="flex flex-wrap gap-2">
+          <div className="shrink-0 border-t border-border bg-white p-3">
+            <div className="mb-3 flex flex-wrap gap-2">
               {quickQuestions.map((question) => (
-                <button key={question} onClick={() => sendMessage(question)} className="rounded-full border border-border bg-white px-3 py-1.5 text-xs font-semibold text-foreground">
+                <button
+                  key={question}
+                  onClick={() => sendMessage(question)}
+                  className="rounded-full border border-border bg-white px-3 py-1.5 text-xs font-semibold text-foreground"
+                >
                   {question}
                 </button>
               ))}
             </div>
+
             <div className="flex gap-2">
               <input
                 value={input}
@@ -103,13 +143,21 @@ export default function ChatBot() {
                 placeholder="Ask a question..."
                 className="min-w-0 flex-1 rounded-full border border-input px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring"
               />
-              <button onClick={() => sendMessage()} className="rounded-full bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground">Send</button>
+
+              <button
+                onClick={() => sendMessage()}
+                className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground"
+              >
+                <Send size={16} />
+                Send
+              </button>
             </div>
-            <p className="text-[11px] leading-relaxed text-muted-foreground">
+
+            <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
               This bot gives basic clinic information only. It does not provide diagnosis or emergency medical advice.
             </p>
           </div>
-        </div>
+        </section>
       )}
 
       <div className="flex flex-col items-end gap-2">
@@ -118,22 +166,27 @@ export default function ChatBot() {
           className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-3 text-sm font-extrabold text-primary-foreground shadow-xl transition hover:scale-105"
           aria-label="Open clinic help bot"
         >
-          <MessageCircle size={18} /> Chat
+          <MessageCircle size={18} />
+          Chat
         </button>
+
         <a
           href="https://wa.me/919755018656?text=Hello%20Arogya%20Clinic%2C%20I%20need%20appointment%20help."
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-2 rounded-full bg-[#25D366] px-4 py-3 text-sm font-extrabold text-white shadow-xl transition hover:scale-105"
         >
-          <WhatsAppIcon size={18} /> WhatsApp
+          <WhatsAppIcon size={18} />
+          WhatsApp
         </a>
+
         <a
           href="tel:9755018656"
           className="inline-flex items-center gap-2 rounded-full px-4 py-3 text-sm font-extrabold text-white shadow-xl transition hover:scale-105 sm:hidden"
           style={{ background: "var(--warm-orange)" }}
         >
-          <Phone size={18} /> Call
+          <Phone size={18} />
+          Call
         </a>
       </div>
     </div>

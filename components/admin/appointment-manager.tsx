@@ -12,7 +12,7 @@ type Appointment = {
   service: string
   appointmentType: string
   date: string
-  preferredTime: string
+  time: string
   message: string
   status: AppointmentStatus
   createdAt: string
@@ -166,7 +166,7 @@ export default function AppointmentManager() {
                     <td className="p-4">{appointment.appointmentType}</td>
                     <td className="p-4">
                       <strong>{appointment.date}</strong>
-                      <p className="mt-1 text-xs text-muted-foreground">{appointment.preferredTime}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{appointment.time}</p>
                     </td>
                     <td className="p-4">
                       <span className={`mb-2 inline-flex rounded-full px-3 py-1 text-xs font-bold ${statusClass(appointment.status)}`}>

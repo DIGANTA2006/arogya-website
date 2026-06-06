@@ -1,4 +1,4 @@
-﻿export default function ReviewSection() {
+export default function ReviewSection() {
   return null;
 }
 
