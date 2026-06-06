@@ -20,34 +20,41 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const body = (await request.json()) as ReviewBody;
+  try {
+    const body = (await request.json()) as ReviewBody;
 
-  const name = clean(body.name);
-  const message = clean(body.message);
-  const rating = Number(body.rating || 5);
+    const name = clean(body.name);
+    const message = clean(body.message);
+    const rating = Number(body.rating || 5);
 
-  if (!name || !message) {
+    if (!name || !message) {
+      return NextResponse.json(
+        { error: "Name and review message are required." },
+        { status: 400 }
+      );
+    }
+
+    if (rating < 1 || rating > 5) {
+      return NextResponse.json(
+        { error: "Rating must be between 1 and 5." },
+        { status: 400 }
+      );
+    }
+
+    await addReview({
+      name,
+      rating,
+      message,
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: "Thank you. Your review has been submitted for approval.",
+    });
+  } catch {
     return NextResponse.json(
-      { error: "Name and review message are required." },
-      { status: 400 }
+      { error: "Review could not be submitted. Please check Supabase setup." },
+      { status: 500 }
     );
   }
-
-  if (rating < 1 || rating > 5) {
-    return NextResponse.json(
-      { error: "Rating must be between 1 and 5." },
-      { status: 400 }
-    );
-  }
-
-  await addReview({
-    name,
-    rating,
-    message,
-  });
-
-  return NextResponse.json({
-    success: true,
-    message: "Thank you. Your review has been submitted for approval.",
-  });
 }

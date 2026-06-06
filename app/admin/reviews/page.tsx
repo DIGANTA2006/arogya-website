@@ -1,4 +1,4 @@
-﻿import ReviewManager from "@/components/admin/review-manager";
+import ReviewManager from "@/components/admin/review-manager";
 
 export default function AdminReviewsPage() {
   return (
@@ -43,4 +43,3 @@ export default function AdminReviewsPage() {
     </main>
   );
 }
-

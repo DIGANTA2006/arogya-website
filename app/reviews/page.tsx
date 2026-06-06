@@ -32,8 +32,9 @@ export default function ReviewsPage() {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        ...form,
+        name: form.name,
         rating: Number(form.rating),
+        message: form.message,
       }),
     });
 
@@ -45,7 +46,7 @@ export default function ReviewsPage() {
       return;
     }
 
-    setStatus(data.message);
+    setStatus(data.message || "Review submitted successfully.");
     setForm({
       name: "",
       rating: "5",
@@ -65,9 +66,9 @@ export default function ReviewsPage() {
         placeItems: "center",
       }}
     >
-      <div className="card" style={{ width: "min(620px, 100%)", padding: 34 }}>
+      <div className="card" style={{ width: "min(650px, 100%)", padding: 34 }}>
         <a href="/" style={{ color: "#0284c7", fontWeight: 900, textDecoration: "none" }}>
-          ← BBack to website
+          ← Back to website
         </a>
 
         <div style={{ marginTop: 26 }}>
@@ -120,7 +121,15 @@ export default function ReviewsPage() {
           </button>
 
           {status && (
-            <p style={{ margin: 0, color: status.includes("Thank") ? "#15803d" : "#b91c1c", fontWeight: 800 }}>
+            <p
+              style={{
+                margin: 0,
+                color: status.includes("Thank") || status.includes("success")
+                  ? "#15803d"
+                  : "#b91c1c",
+                fontWeight: 800,
+              }}
+            >
               {status}
             </p>
           )}
@@ -129,5 +138,3 @@ export default function ReviewsPage() {
     </main>
   );
 }
-
-

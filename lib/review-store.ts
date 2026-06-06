@@ -26,14 +26,14 @@ async function ensureFile() {
   }
 }
 
-function mapSupabaseReview(row: any): Review {
+function mapRow(row: any): Review {
   return {
-    id: row.id,
-    name: row.name,
+    id: String(row.id),
+    name: String(row.name || "Patient"),
     rating: Number(row.rating || 5),
-    message: row.message,
-    status: row.status || "Pending",
-    createdAt: row.created_at,
+    message: String(row.message || ""),
+    status: (row.status || "Pending") as ReviewStatus,
+    createdAt: String(row.created_at || row.createdAt || new Date().toISOString()),
   };
 }
 
@@ -52,13 +52,16 @@ export async function getReviews(status?: ReviewStatus): Promise<Review[]> {
 
     const { data, error } = await query;
 
+    if (error) {
+      console.error("Review fetch error:", error.message);
+    }
+
     if (!error && data) {
-      return data.map(mapSupabaseReview);
+      return data.map(mapRow);
     }
   }
 
   await ensureFile();
-
   const raw = await readFile(filePath, "utf8");
   const reviews = JSON.parse(raw || "[]") as Review[];
 
@@ -84,9 +87,12 @@ export async function addReview(input: {
       .select()
       .single();
 
-    if (!error && data) {
-      return mapSupabaseReview(data);
+    if (error) {
+      console.error("Review insert error:", error.message);
+      throw new Error(error.message);
     }
+
+    return mapRow(data);
   }
 
   await ensureFile();
@@ -119,20 +125,23 @@ export async function updateReviewStatus(id: string, status: ReviewStatus) {
       .select()
       .single();
 
-    if (!error && data) {
-      return mapSupabaseReview(data);
+    if (error) {
+      console.error("Review update error:", error.message);
+      throw new Error(error.message);
     }
+
+    return mapRow(data);
   }
 
   await ensureFile();
 
   const reviews = await getReviews();
 
-  const updatedReviews = reviews.map((review) =>
+  const updated = reviews.map((review) =>
     review.id === id ? { ...review, status } : review
   );
 
-  await writeFile(filePath, JSON.stringify(updatedReviews, null, 2), "utf8");
+  await writeFile(filePath, JSON.stringify(updated, null, 2), "utf8");
 
-  return updatedReviews.find((review) => review.id === id);
+  return updated.find((review) => review.id === id);
 }

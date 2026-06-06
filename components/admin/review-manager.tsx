@@ -28,6 +28,8 @@ export default function ReviewManager() {
     if (response.ok) {
       const data = await response.json();
       setReviews(data.reviews || []);
+    } else {
+      setMessage("Please login as admin first.");
     }
   }
 
@@ -77,7 +79,12 @@ export default function ReviewManager() {
             </p>
           </div>
 
-          <select className="field" style={{ maxWidth: 220 }} value={filter} onChange={(event) => setFilter(event.target.value)}>
+          <select
+            className="field"
+            style={{ maxWidth: 220 }}
+            value={filter}
+            onChange={(event) => setFilter(event.target.value)}
+          >
             <option>All</option>
             {statusOptions.map((status) => (
               <option key={status}>{status}</option>
@@ -87,7 +94,14 @@ export default function ReviewManager() {
       </div>
 
       {message && (
-        <div className="card" style={{ padding: 16, marginBottom: 20, color: message.includes("failed") ? "#b91c1c" : "#15803d" }}>
+        <div
+          className="card"
+          style={{
+            padding: 16,
+            marginBottom: 20,
+            color: message.includes("failed") ? "#b91c1c" : "#15803d",
+          }}
+        >
           {message}
         </div>
       )}
@@ -113,7 +127,9 @@ export default function ReviewManager() {
                   className="field"
                   style={{ maxWidth: 190 }}
                   value={review.status}
-                  onChange={(event) => updateStatus(review.id, event.target.value as ReviewStatus)}
+                  onChange={(event) =>
+                    updateStatus(review.id, event.target.value as ReviewStatus)
+                  }
                 >
                   {statusOptions.map((status) => (
                     <option key={status}>{status}</option>
@@ -135,4 +151,3 @@ export default function ReviewManager() {
     </div>
   );
 }
-

@@ -1,36 +1,33 @@
 import type { MetadataRoute } from "next";
 
 export default function sitemap(): MetadataRoute.Sitemap {
+  const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL || "https://arogya-website-five.vercel.app";
+
   return [
     {
-      url: "https://arogya-website-five.vercel.app",
+      url: siteUrl,
       lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 1,
     },
     {
-      url: "https://arogya-website-five.vercel.app/privacy-policy",
+      url: `${siteUrl}/reviews`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.7,
+    },
+    {
+      url: `${siteUrl}/privacy-policy`,
       lastModified: new Date(),
       changeFrequency: "monthly",
       priority: 0.4,
     },
     {
-      url: "https://arogya-website-five.vercel.app/terms",
+      url: `${siteUrl}/terms`,
       lastModified: new Date(),
       changeFrequency: "monthly",
       priority: 0.4,
-    },
-    {
-      url: "https://arogya-website-five.vercel.app/client/login",
-      lastModified: new Date(),
-      changeFrequency: "monthly",
-      priority: 0.3,
-    },
-    {
-      url: "https://arogya-website-five.vercel.app/client/register",
-      lastModified: new Date(),
-      changeFrequency: "monthly",
-      priority: 0.3,
     },
   ];
 }
