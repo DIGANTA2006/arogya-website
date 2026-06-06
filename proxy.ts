@@ -60,7 +60,7 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  if (path.startsWith("/client/dashboard")) {
+  if (path.startsWith("/client/dashboard") || path.startsWith("/client/profile")) {
     const valid = await isValidSession(request, "client");
 
     if (!valid) {
@@ -78,5 +78,6 @@ export const config = {
     "/admin/prescriptions/:path*",
     "/admin/reviews/:path*",
     "/client/dashboard/:path*",
+    "/client/profile/:path*",
   ],
 };

@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { createSignature } from "../auth-utils";
 import { createPatient, findPatientByEmail } from "@/lib/patient-store";
 
@@ -15,7 +15,7 @@ export async function POST(request: Request) {
 
   if (!email) {
     return NextResponse.json(
-      { error: "Email not found from social login." },
+      { error: "Email not found from Google login." },
       { status: 400 }
     );
   }
@@ -29,6 +29,7 @@ export async function POST(request: Request) {
       phone: "",
       email,
       password: crypto.randomUUID(),
+      mobileVerified: false,
     });
   }
 
@@ -37,39 +38,18 @@ export async function POST(request: Request) {
 
   const response = NextResponse.json({ success: true });
 
-  response.cookies.set("portal_role", role, {
+  const cookieOptions = {
     httpOnly: true,
-    sameSite: "lax",
+    sameSite: "lax" as const,
     secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge: 60 * 60 * 8,
-  });
+  };
 
-  response.cookies.set("portal_token", token, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: 60 * 60 * 8,
-  });
-
-  response.cookies.set("portal_email", patient.email, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: 60 * 60 * 8,
-  });
-
-  response.cookies.set("portal_name", patient.name, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: 60 * 60 * 8,
-  });
+  response.cookies.set("portal_role", role, cookieOptions);
+  response.cookies.set("portal_token", token, cookieOptions);
+  response.cookies.set("portal_email", patient.email, cookieOptions);
+  response.cookies.set("portal_name", patient.name, cookieOptions);
 
   return response;
 }
-
-

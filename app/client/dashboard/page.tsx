@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 
@@ -138,6 +138,7 @@ export default function ClientDashboardPage() {
               Website
             </a>
 
+            <a href="/client/profile" className="btn-secondary">My Profile</a>
             <form action="/api/auth/logout" method="post">
               <button className="btn-secondary" type="submit">
                 Logout

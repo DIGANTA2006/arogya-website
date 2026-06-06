@@ -7,12 +7,19 @@ export default function SocialLoginButtons() {
     const supabase = createSupabaseBrowserClient();
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
 
-    await supabase.auth.signInWithOAuth({
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
         redirectTo: `${siteUrl}/auth/callback`,
+        queryParams: {
+          prompt: "select_account",
+        },
       },
     });
+
+    if (error) {
+      alert(error.message);
+    }
   }
 
   return (
@@ -67,4 +74,3 @@ const googleIcon: React.CSSProperties = {
   color: "#dc2626",
   fontWeight: 950,
 };
-
