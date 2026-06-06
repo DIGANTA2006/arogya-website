@@ -1,4 +1,4 @@
-﻿Put your clinic images in this folder.
+﻿Put your real gallery images here.
 
 Recommended names:
 clinic-1.jpg

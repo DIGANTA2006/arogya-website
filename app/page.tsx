@@ -23,6 +23,7 @@ export default function Home() {
       <Navbar />
       <HeroSection />
       <GallerySection />
+      
       <AboutSection />
       <ServicesSection />
       <ConditionsSection />
