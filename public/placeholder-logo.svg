@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 420" role="img" aria-label="Arogya Speech Therapy & Hearing Care logo">
+  <defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#004b9b"/><stop offset="1" stop-color="#00a6a6"/></linearGradient></defs>
+  <rect width="1200" height="420" rx="28" fill="#ffffff"/>
+  <g transform="translate(62 48) scale(.68)">
+  <path d="M105 338C80 252 112 151 205 103c72-37 163-23 219 33" fill="none" stroke="url(#g)" stroke-width="34" stroke-linecap="round"/>
+  <path d="M190 363c77 38 179 18 222-70" fill="none" stroke="url(#g)" stroke-width="34" stroke-linecap="round"/>
+  <path d="M215 144c-56 30-76 87-55 139 9 22 19 35 40 44" fill="none" stroke="#004b9b" stroke-width="22" stroke-linecap="round"/>
+  <path d="M298 134c68 15 105 72 92 134-8 38-28 55-52 75" fill="none" stroke="#00a6a6" stroke-width="23" stroke-linecap="round"/>
+  <path d="M242 243h0M272 220v70M302 231v48M212 231v48" stroke="#00a6a6" stroke-width="18" stroke-linecap="round"/>
+</g>
+  <text x="415" y="178" font-family="Georgia,serif" font-size="82" font-weight="700" fill="#003b86">AROGYA</text>
+  <text x="418" y="245" font-family="Arial,sans-serif" font-size="34" letter-spacing="7" fill="#008c94">SPEECH THERAPY &amp; HEARING CARE</text>
+  <line x1="418" y1="280" x2="1040" y2="280" stroke="#00a6a6" stroke-width="5" stroke-linecap="round"/>
+</svg>

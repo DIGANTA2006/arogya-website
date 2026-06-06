@@ -1,0 +1,83 @@
+﻿import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
+import { createPatient } from "@/lib/patient-store";
+import { cleanPhone } from "@/lib/mobile-otp-store";
+
+type RegisterBody = {
+  name?: string;
+  age?: string;
+  phone?: string;
+  email?: string;
+  password?: string;
+};
+
+function clean(value?: string) {
+  return String(value || "").trim();
+}
+
+export async function POST(request: Request) {
+  try {
+    const body = (await request.json()) as RegisterBody;
+
+    const name = clean(body.name);
+    const age = clean(body.age);
+    const phone = cleanPhone(clean(body.phone));
+    const email = clean(body.email).toLowerCase();
+    const password = clean(body.password);
+
+    if (!name || !age || !phone || !email || !password) {
+      return NextResponse.json(
+        { error: "All fields are required." },
+        { status: 400 }
+      );
+    }
+
+    const cookieStore = await cookies();
+    const verifiedMobile = cookieStore.get("verified_mobile")?.value;
+
+    if (verifiedMobile !== phone) {
+      return NextResponse.json(
+        { error: "Please verify your mobile number with OTP before signup." },
+        { status: 403 }
+      );
+    }
+
+    if (password.length < 6) {
+      return NextResponse.json(
+        { error: "Password must be at least 6 characters." },
+        { status: 400 }
+      );
+    }
+
+    const patient = await createPatient({
+      name,
+      age,
+      phone,
+      email,
+      password,
+      mobileVerified: true,
+    });
+
+    const response = NextResponse.json({
+      success: true,
+      patient: {
+        id: patient.id,
+        name: patient.name,
+        email: patient.email,
+      },
+    });
+
+    response.cookies.set("verified_mobile", "", {
+      path: "/",
+      maxAge: 0,
+    });
+
+    return response;
+  } catch (error) {
+    return NextResponse.json(
+      { error: "Patient already exists or registration failed." },
+      { status: 400 }
+    );
+  }
+}
+
