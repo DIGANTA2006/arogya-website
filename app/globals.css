@@ -203,58 +203,40 @@ body {
   }
 }
 
-/* FINAL_PORTAL_NAVBAR_FIX */
-.floating-portal,
-.portal-floating,
-.portal-login-floating,
-a[href="/portal"].floating-btn,
-a[href="/portal"].floating-button {
-  display: none !important;
-}
-
-.nav-portal-btn {
-  display: inline-flex !important;
-  align-items: center;
-  justify-content: center;
-  text-decoration: none !important;
-  padding: 12px 20px;
-  border-radius: 999px;
-  font-weight: 900;
-  white-space: nowrap;
-}
-
-@media (max-width: 768px) {
-  .nav-portal-btn {
-    width: 100%;
-    margin-top: 10px;
-  }
-
-  .floating-contact,
-  .contact-floating,
-  .chat-floating,
-  .whatsapp-floating {
-    position: fixed !important;
-    right: 12px !important;
-    bottom: 16px !important;
-    z-index: 80 !important;
-  }
-
-  .chatbot-panel,
-  .chat-help-panel {
-    position: fixed !important;
-    left: 12px !important;
-    right: 12px !important;
-    bottom: 84px !important;
-    width: auto !important;
-    max-width: none !important;
-    max-height: calc(100vh - 130px) !important;
-    overflow: auto !important;
-    z-index: 90 !important;
-  }
-}
 /* Hide old floating portal button only */
 .floating-portal,
 .portal-floating,
 .portal-login-floating {
+  display: none !important;
+}
+
+/* FINAL_CLEAN_FLOATING_CONTACT_ONLY */
+/* Hide only old floating portal buttons */
+.floating-portal,
+.portal-floating,
+.portal-login-floating,
+.old-portal-floating,
+.floating-portal-login {
+  display: none !important;
+}
+
+/* Keep Chat/WhatsApp fixed in one clean place */
+.chat-floating,
+.whatsapp-floating,
+.floating-contact,
+.contact-floating {
+  z-index: 90 !important;
+}
+
+/* Make sure navbar Portal Login stays visible */
+header a[href="/portal"] {
+  display: inline-flex !important;
+}
+/* REMOVE_OLD_FLOATING_PORTAL */
+.floating-portal,
+.portal-floating,
+.portal-login-floating,
+.old-portal-floating,
+.floating-portal-login {
   display: none !important;
 }
