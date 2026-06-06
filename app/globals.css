@@ -512,3 +512,30 @@ button {
 #patient-reviews {
   display: none !important;
 }
+/* CHAT_SCROLL_SLIDE_FINAL_FIX */
+.arogya-chat-scroll-fixed {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  scrollbar-width: thin;
+  padding-bottom: 10px !important;
+}
+
+.arogya-chat-scroll-fixed::-webkit-scrollbar {
+  width: 8px;
+}
+
+.arogya-chat-scroll-fixed::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.22);
+  border-radius: 999px;
+}
+
+@media (max-width: 768px) {
+  .arogya-chat-scroll-fixed {
+    top: 78px !important;
+    left: 12px !important;
+    right: 12px !important;
+    height: calc(100dvh - 102px) !important;
+    max-height: calc(100dvh - 102px) !important;
+    overflow-y: auto !important;
+  }
+}
