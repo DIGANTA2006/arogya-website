@@ -99,8 +99,7 @@ export default function Footer() {
             <span>Clinic Specialist</span>
           </div>
         </div>
-      </div>
-    <div style={{ marginTop: 16 }}><a href="/copyright" style={{ color: "inherit", fontWeight: 800 }}>Copyright & IP Protection</a></div></footer>
+      </div></footer>
   )
 }
 
