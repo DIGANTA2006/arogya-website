@@ -263,3 +263,118 @@ button {
   -moz-user-select: auto;
   user-select: auto;
 }
+/* CHAT_POPUP_CROP_FINAL_FIX */
+/* Keep chat popup fully inside screen */
+.chatbot-panel,
+.chat-help-panel,
+.chat-window,
+.chat-widget,
+.chat-widget-panel,
+.chat-box,
+.chatbox,
+.ai-chat-panel,
+[class*="chatbot-panel"],
+[class*="chat-help-panel"],
+[class*="chat-window"],
+[class*="chat-widget-panel"] {
+  position: fixed !important;
+  right: 18px !important;
+  bottom: 92px !important;
+  top: auto !important;
+  width: min(390px, calc(100vw - 36px)) !important;
+  max-width: calc(100vw - 36px) !important;
+  max-height: calc(100dvh - 122px) !important;
+  overflow: hidden !important;
+  z-index: 9998 !important;
+  border-radius: 24px !important;
+}
+
+/* Chat inner body should scroll, not crop header */
+.chatbot-panel > *,
+.chat-help-panel > *,
+.chat-window > *,
+.chat-widget-panel > *,
+.ai-chat-panel > *,
+[class*="chatbot-panel"] > *,
+[class*="chat-help-panel"] > *,
+[class*="chat-window"] > *,
+[class*="chat-widget-panel"] > * {
+  min-height: 0 !important;
+}
+
+/* If chat has message/body area, make it scroll safely */
+.chat-messages,
+.chatbot-messages,
+.chat-body,
+.chatbot-body,
+.chat-content,
+.chatbot-content,
+[class*="chat-messages"],
+[class*="chat-body"],
+[class*="chat-content"] {
+  overflow-y: auto !important;
+  max-height: calc(100dvh - 230px) !important;
+}
+
+/* Keep floating Chat and WhatsApp buttons visible but not covering popup */
+.chat-floating,
+.whatsapp-floating,
+.floating-contact,
+.contact-floating {
+  position: fixed !important;
+  right: 18px !important;
+  z-index: 9997 !important;
+}
+
+/* Mobile safe chat popup */
+@media (max-width: 768px) {
+  .chatbot-panel,
+  .chat-help-panel,
+  .chat-window,
+  .chat-widget,
+  .chat-widget-panel,
+  .chat-box,
+  .chatbox,
+  .ai-chat-panel,
+  [class*="chatbot-panel"],
+  [class*="chat-help-panel"],
+  [class*="chat-window"],
+  [class*="chat-widget-panel"] {
+    left: 12px !important;
+    right: 12px !important;
+    bottom: 82px !important;
+    top: auto !important;
+    width: auto !important;
+    max-width: none !important;
+    max-height: calc(100dvh - 104px) !important;
+    border-radius: 22px !important;
+  }
+
+  .chat-messages,
+  .chatbot-messages,
+  .chat-body,
+  .chatbot-body,
+  .chat-content,
+  .chatbot-content,
+  [class*="chat-messages"],
+  [class*="chat-body"],
+  [class*="chat-content"] {
+    max-height: calc(100dvh - 215px) !important;
+  }
+}
+
+/* Very small screen safety */
+@media (max-height: 620px) {
+  .chatbot-panel,
+  .chat-help-panel,
+  .chat-window,
+  .chat-widget-panel,
+  .ai-chat-panel,
+  [class*="chatbot-panel"],
+  [class*="chat-help-panel"],
+  [class*="chat-window"],
+  [class*="chat-widget-panel"] {
+    bottom: 70px !important;
+    max-height: calc(100dvh - 86px) !important;
+  }
+}
