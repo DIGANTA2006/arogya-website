@@ -1,3 +1,4 @@
+import ReviewPopup from "@/components/review-popup";
 import type { Metadata } from "next";
 import "./globals.css";
 
@@ -75,6 +76,7 @@ export default function RootLayout({
           }}
         />
         {children}
+              <ReviewPopup />
       </body>
     </html>
   );

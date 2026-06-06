@@ -2,24 +2,26 @@
 
 import { useState } from "react";
 
+const ratingOptions = [
+  { value: 5, emoji: "😍", label: "Excellent" },
+  { value: 4, emoji: "😊", label: "Good" },
+  { value: 3, emoji: "🙂", label: "Average" },
+  { value: 2, emoji: "😕", label: "Poor" },
+  { value: 1, emoji: "😟", label: "Bad" },
+];
+
 export default function ReviewsPage() {
   const [form, setForm] = useState({
     name: "",
-    rating: "5",
+    rating: 5,
     message: "",
   });
 
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
 
-  function updateField(
-    event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
-  ) {
-    setForm({
-      ...form,
-      [event.target.name]: event.target.value,
-    });
-  }
+  const selectedRating =
+    ratingOptions.find((item) => item.value === form.rating) || ratingOptions[0];
 
   async function submitReview(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -33,8 +35,8 @@ export default function ReviewsPage() {
       },
       body: JSON.stringify({
         name: form.name,
-        rating: Number(form.rating),
-        message: form.message,
+        rating: form.rating,
+        message: `${selectedRating.emoji} ${selectedRating.label} - ${form.message}`,
       }),
     });
 
@@ -46,10 +48,10 @@ export default function ReviewsPage() {
       return;
     }
 
-    setStatus(data.message || "Review submitted successfully.");
+    setStatus(data.message || "Thank you. Your review has been submitted for approval.");
     setForm({
       name: "",
-      rating: "5",
+      rating: 5,
       message: "",
     });
     setLoading(false);
@@ -66,7 +68,7 @@ export default function ReviewsPage() {
         placeItems: "center",
       }}
     >
-      <div className="card" style={{ width: "min(650px, 100%)", padding: 34 }}>
+      <div className="card" style={{ width: "min(680px, 100%)", padding: 34 }}>
         <a href="/" style={{ color: "#0284c7", fontWeight: 900, textDecoration: "none" }}>
           ← Back to website
         </a>
@@ -77,34 +79,52 @@ export default function ReviewsPage() {
             Share your experience
           </h1>
           <p style={{ color: "#64748b", lineHeight: 1.7 }}>
-            Your feedback helps other patients understand the clinic experience.
-            Reviews are checked by the clinic before publishing.
+            Select an emoji rating and write your experience. Reviews are checked by the clinic before publishing.
           </p>
         </div>
 
         <form onSubmit={submitReview} style={{ display: "grid", gap: 16, marginTop: 24 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10 }}>
+            {ratingOptions.map((item) => (
+              <button
+                key={item.value}
+                type="button"
+                onClick={() =>
+                  setForm({
+                    ...form,
+                    rating: item.value,
+                  })
+                }
+                style={{
+                  border: form.rating === item.value ? "2px solid #0284c7" : "1px solid #cbd5e1",
+                  background: form.rating === item.value ? "#e0f2fe" : "#ffffff",
+                  borderRadius: 18,
+                  padding: "14px 8px",
+                  cursor: "pointer",
+                  display: "grid",
+                  gap: 6,
+                  justifyItems: "center",
+                }}
+              >
+                <span style={{ fontSize: 30 }}>{item.emoji}</span>
+                <span style={{ fontSize: 12, fontWeight: 900 }}>{item.label}</span>
+              </button>
+            ))}
+          </div>
+
           <input
             className="field"
             name="name"
             placeholder="Your name"
             value={form.name}
-            onChange={updateField}
+            onChange={(event) =>
+              setForm({
+                ...form,
+                name: event.target.value,
+              })
+            }
             required
           />
-
-          <select
-            className="field"
-            name="rating"
-            value={form.rating}
-            onChange={updateField}
-            required
-          >
-            <option value="5">5 - Excellent</option>
-            <option value="4">4 - Good</option>
-            <option value="3">3 - Average</option>
-            <option value="2">2 - Poor</option>
-            <option value="1">1 - Very poor</option>
-          </select>
 
           <textarea
             className="field"
@@ -112,7 +132,12 @@ export default function ReviewsPage() {
             placeholder="Write your experience..."
             rows={5}
             value={form.message}
-            onChange={updateField}
+            onChange={(event) =>
+              setForm({
+                ...form,
+                message: event.target.value,
+              })
+            }
             required
           />
 
@@ -124,9 +149,7 @@ export default function ReviewsPage() {
             <p
               style={{
                 margin: 0,
-                color: status.includes("Thank") || status.includes("success")
-                  ? "#15803d"
-                  : "#b91c1c",
+                color: status.includes("Thank") ? "#15803d" : "#b91c1c",
                 fontWeight: 800,
               }}
             >
