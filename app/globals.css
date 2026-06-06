@@ -378,3 +378,124 @@ button {
     max-height: calc(100dvh - 86px) !important;
   }
 }
+/* CHAT_TOP_CROP_STRONG_FIX */
+/* Prevent Clinic Help Bot popup from touching/cropping top screen */
+.chatbot-panel,
+.chat-help-panel,
+.chat-window,
+.chat-widget-panel,
+.chatbox-panel,
+.clinic-chat-panel,
+.ai-chat-panel,
+[class*="chatbot"],
+[class*="chat-help"],
+[class*="chat-window"],
+[class*="chat-widget-panel"],
+[class*="clinic-chat"] {
+  position: fixed !important;
+  top: 24px !important;
+  bottom: auto !important;
+  right: 24px !important;
+  left: auto !important;
+  width: min(460px, calc(100vw - 48px)) !important;
+  max-width: calc(100vw - 48px) !important;
+  max-height: calc(100dvh - 48px) !important;
+  overflow: hidden !important;
+  border-radius: 24px !important;
+  z-index: 9998 !important;
+}
+
+/* Make inner chat area scroll instead of cropping the header */
+.chatbot-panel *,
+.chat-help-panel *,
+.chat-window *,
+.chat-widget-panel *,
+.chatbox-panel *,
+.clinic-chat-panel *,
+.ai-chat-panel *,
+[class*="chatbot"] *,
+[class*="chat-help"] *,
+[class*="chat-window"] *,
+[class*="chat-widget-panel"] *,
+[class*="clinic-chat"] * {
+  box-sizing: border-box !important;
+}
+
+.chat-messages,
+.chatbot-messages,
+.chat-body,
+.chatbot-body,
+.chat-content,
+.chatbot-content,
+[class*="chat-messages"],
+[class*="chat-body"],
+[class*="chat-content"] {
+  overflow-y: auto !important;
+  max-height: calc(100dvh - 250px) !important;
+}
+
+/* Keep Chat and WhatsApp buttons below popup */
+.chat-floating,
+.whatsapp-floating,
+.floating-contact,
+.contact-floating {
+  position: fixed !important;
+  right: 18px !important;
+  z-index: 9997 !important;
+}
+
+/* Mobile screen fix */
+@media (max-width: 768px) {
+  .chatbot-panel,
+  .chat-help-panel,
+  .chat-window,
+  .chat-widget-panel,
+  .chatbox-panel,
+  .clinic-chat-panel,
+  .ai-chat-panel,
+  [class*="chatbot"],
+  [class*="chat-help"],
+  [class*="chat-window"],
+  [class*="chat-widget-panel"],
+  [class*="clinic-chat"] {
+    top: 16px !important;
+    left: 12px !important;
+    right: 12px !important;
+    bottom: auto !important;
+    width: auto !important;
+    max-width: none !important;
+    max-height: calc(100dvh - 32px) !important;
+    border-radius: 22px !important;
+  }
+
+  .chat-messages,
+  .chatbot-messages,
+  .chat-body,
+  .chatbot-body,
+  .chat-content,
+  .chatbot-content,
+  [class*="chat-messages"],
+  [class*="chat-body"],
+  [class*="chat-content"] {
+    max-height: calc(100dvh - 225px) !important;
+  }
+}
+
+/* Very small height laptop/mobile fix */
+@media (max-height: 620px) {
+  .chatbot-panel,
+  .chat-help-panel,
+  .chat-window,
+  .chat-widget-panel,
+  .chatbox-panel,
+  .clinic-chat-panel,
+  .ai-chat-panel,
+  [class*="chatbot"],
+  [class*="chat-help"],
+  [class*="chat-window"],
+  [class*="chat-widget-panel"],
+  [class*="clinic-chat"] {
+    top: 10px !important;
+    max-height: calc(100dvh - 20px) !important;
+  }
+}
