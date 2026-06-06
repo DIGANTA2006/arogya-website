@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { addReview, getReviews } from "@/lib/review-store";
 
+export const dynamic = "force-dynamic";
+
 type ReviewBody = {
   name?: string;
   rating?: number;
@@ -12,11 +14,21 @@ function clean(value?: string) {
 }
 
 export async function GET() {
-  const reviews = await getReviews("Approved");
+  try {
+    const reviews = await getReviews("Approved");
 
-  return NextResponse.json({
-    reviews,
-  });
+    return NextResponse.json({
+      reviews,
+    });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: "Review API failed.",
+        detail: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 }
+    );
+  }
 }
 
 export async function POST(request: Request) {
@@ -51,9 +63,12 @@ export async function POST(request: Request) {
       success: true,
       message: "Thank you. Your review has been submitted for approval.",
     });
-  } catch {
+  } catch (error) {
     return NextResponse.json(
-      { error: "Review could not be submitted. Please check Supabase setup." },
+      {
+        error: "Review could not be submitted.",
+        detail: error instanceof Error ? error.message : "Unknown error",
+      },
       { status: 500 }
     );
   }

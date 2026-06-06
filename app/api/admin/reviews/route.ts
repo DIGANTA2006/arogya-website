@@ -6,6 +6,8 @@ import {
 } from "@/lib/review-store";
 import { hasPortalRole } from "@/lib/portal-auth";
 
+export const dynamic = "force-dynamic";
+
 const validStatuses: ReviewStatus[] = ["Pending", "Approved", "Rejected"];
 
 export async function GET() {
@@ -15,11 +17,21 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
 
-  const reviews = await getReviews();
+  try {
+    const reviews = await getReviews();
 
-  return NextResponse.json({
-    reviews,
-  });
+    return NextResponse.json({
+      reviews,
+    });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: "Admin review API failed.",
+        detail: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 }
+    );
+  }
 }
 
 export async function PATCH(request: Request) {
@@ -48,9 +60,12 @@ export async function PATCH(request: Request) {
       success: true,
       review,
     });
-  } catch {
+  } catch (error) {
     return NextResponse.json(
-      { error: "Review status could not be updated." },
+      {
+        error: "Review status could not be updated.",
+        detail: error instanceof Error ? error.message : "Unknown error",
+      },
       { status: 500 }
     );
   }
