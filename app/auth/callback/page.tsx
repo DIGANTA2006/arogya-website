@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -18,87 +18,62 @@ export default function AuthCallbackPage() {
     async function finishLogin() {
       try {
         const supabase = createSupabaseBrowserClient();
-        const url = new URL(window.location.href);
 
-        const oauthError =
+        const url = new URL(window.location.href);
+        const error =
           url.searchParams.get("error_description") ||
           url.searchParams.get("error");
 
-        if (oauthError) {
-          setStatus("Google login failed: " + oauthError);
-          await wait(2200);
+        if (error) {
+          setStatus("Google login failed: " + error);
+          await wait(2500);
           router.replace("/client/login");
           return;
         }
 
-        const code = url.searchParams.get("code");
+        setStatus("Reading Google account...");
+
         let email = "";
         let name = "";
 
-        if (code) {
-          setStatus("Verifying Google account...");
+        for (let i = 0; i < 20; i += 1) {
+          const sessionResult = await supabase.auth.getSession();
+          const sessionUser = sessionResult.data.session?.user;
 
-          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-
-          if (error) {
-            setStatus("Google session failed: " + error.message);
-            await wait(2500);
-            router.replace("/client/login");
-            return;
-          }
-
-          if (data.session?.user?.email) {
-            email = data.session.user.email;
+          if (sessionUser?.email) {
+            email = sessionUser.email;
             name =
-              data.session.user.user_metadata?.full_name ||
-              data.session.user.user_metadata?.name ||
+              sessionUser.user_metadata?.full_name ||
+              sessionUser.user_metadata?.name ||
               email.split("@")[0] ||
               "Patient";
+            break;
           }
+
+          const userResult = await supabase.auth.getUser();
+          const user = userResult.data.user;
+
+          if (user?.email) {
+            email = user.email;
+            name =
+              user.user_metadata?.full_name ||
+              user.user_metadata?.name ||
+              email.split("@")[0] ||
+              "Patient";
+            break;
+          }
+
+          await wait(400);
         }
 
         if (!email) {
-          setStatus("Reading Google email...");
-
-          for (let i = 0; i < 15; i += 1) {
-            const sessionResult = await supabase.auth.getSession();
-            const userFromSession = sessionResult.data.session?.user;
-
-            if (userFromSession?.email) {
-              email = userFromSession.email;
-              name =
-                userFromSession.user_metadata?.full_name ||
-                userFromSession.user_metadata?.name ||
-                email.split("@")[0] ||
-                "Patient";
-              break;
-            }
-
-            const userResult = await supabase.auth.getUser();
-            const user = userResult.data.user;
-
-            if (user?.email) {
-              email = user.email;
-              name =
-                user.user_metadata?.full_name ||
-                user.user_metadata?.name ||
-                email.split("@")[0] ||
-                "Patient";
-              break;
-            }
-
-            await wait(400);
-          }
-        }
-
-        if (!email) {
-          setStatus("Google login completed, but Gmail email was not received. Check Supabase redirect URL.");
-          await wait(3500);
+          setStatus("Google login finished, but Gmail email was not received. Check Supabase Auth URL Configuration.");
+          await wait(4000);
           router.replace("/client/login");
           return;
         }
 
-        setStatus("Creating patient portal account...");
+        setStatus("Creating patient account...");
 
         const response = await fetch("/api/auth/social-sync", {
           method: "POST",
@@ -111,10 +86,10 @@ export default function AuthCallbackPage() {
           }),
         });
 
-        const result = await response.json().catch(() => ({}));
+        const data = await response.json().catch(() => ({}));
 
         if (!response.ok) {
-          setStatus(result.error || "Portal session could not be created.");
+          setStatus(data.error || "Portal session could not be created.");
           await wait(3000);
           router.replace("/client/login");
           return;
