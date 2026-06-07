@@ -539,13 +539,3 @@ button {
     overflow-y: auto !important;
   }
 }
-/* ===== Fix: hide top Portal Login button on mobile only ===== */
-@media (max-width: 767px) {
-  .portal-login-top-mobile-hide {
-    display: none !important;
-    visibility: hidden !important;
-    pointer-events: none !important;
-  }
-}
-/* ===== End Portal Login mobile fix ===== */
-

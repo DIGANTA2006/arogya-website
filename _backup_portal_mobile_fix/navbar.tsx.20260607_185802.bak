@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { Clock, MapPin, Menu, Phone, X } from "lucide-react";
@@ -98,7 +98,7 @@ export default function Navbar() {
           <div className="flex items-center gap-3">
             <a
               href="/portal"
-              className="hidden rounded-full bg-slate-900 px-5 py-2.5 text-sm font-bold text-white shadow-md transition-all duration-200 hover:scale-105 hover:bg-slate-800 sm:inline-flex portal-login-top-mobile-hide max-md:hidden"
+              className="hidden rounded-full bg-slate-900 px-5 py-2.5 text-sm font-bold text-white shadow-md transition-all duration-200 hover:scale-105 hover:bg-slate-800 sm:inline-flex"
             >
               Portal Login
             </a>
