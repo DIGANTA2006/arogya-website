@@ -62,22 +62,142 @@ async function detectWithBarcodeDetector(source: ImageBitmapSource) {
     return "";
   }
 
-  const detector = new window.BarcodeDetector({
-    formats: ["qr_code"],
-  });
+  try {
+    const detector = new window.BarcodeDetector({
+      formats: ["qr_code"],
+    });
 
-  const codes = await detector.detect(source);
-  const rawValue = codes[0]?.rawValue || "";
+    const codes = await detector.detect(source);
 
-  return extractToken(rawValue);
+    for (const code of codes) {
+      const token = extractToken(code.rawValue || "");
+
+      if (token) {
+        return token;
+      }
+    }
+
+    return "";
+  } catch {
+    return "";
+  }
+}
+
+function cropCanvas(
+  sourceCanvas: HTMLCanvasElement,
+  x: number,
+  y: number,
+  width: number,
+  height: number
+) {
+  const crop = document.createElement("canvas");
+  const context = crop.getContext("2d");
+
+  if (!context) {
+    return null;
+  }
+
+  crop.width = Math.max(1, Math.floor(width));
+  crop.height = Math.max(1, Math.floor(height));
+
+  context.drawImage(
+    sourceCanvas,
+    Math.max(0, Math.floor(x)),
+    Math.max(0, Math.floor(y)),
+    Math.max(1, Math.floor(width)),
+    Math.max(1, Math.floor(height)),
+    0,
+    0,
+    crop.width,
+    crop.height
+  );
+
+  return crop;
+}
+
+async function detectQrFromCanvas(canvas: HTMLCanvasElement) {
+  const fullPageToken = await detectWithBarcodeDetector(
+    canvas as unknown as ImageBitmapSource
+  );
+
+  if (fullPageToken) {
+    return fullPageToken;
+  }
+
+  const cropAreas = [
+    // Top right area where the QR usually sits.
+    {
+      x: canvas.width * 0.62,
+      y: 0,
+      width: canvas.width * 0.38,
+      height: canvas.height * 0.34,
+    },
+    // Top center/right, for older layouts.
+    {
+      x: canvas.width * 0.35,
+      y: 0,
+      width: canvas.width * 0.45,
+      height: canvas.height * 0.36,
+    },
+    // Whole top area.
+    {
+      x: 0,
+      y: 0,
+      width: canvas.width,
+      height: canvas.height * 0.42,
+    },
+    // Middle area fallback.
+    {
+      x: canvas.width * 0.20,
+      y: canvas.height * 0.15,
+      width: canvas.width * 0.60,
+      height: canvas.height * 0.40,
+    },
+  ];
+
+  for (const area of cropAreas) {
+    const cropped = cropCanvas(
+      canvas,
+      area.x,
+      area.y,
+      area.width,
+      area.height
+    );
+
+    if (!cropped) {
+      continue;
+    }
+
+    const token = await detectWithBarcodeDetector(
+      cropped as unknown as ImageBitmapSource
+    );
+
+    if (token) {
+      return token;
+    }
+  }
+
+  return "";
 }
 
 async function detectQrFromImage(file: File) {
   try {
     const bitmap = await createImageBitmap(file);
-    const token = await detectWithBarcodeDetector(bitmap);
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
+
+    if (!context) {
+      bitmap.close();
+      return "";
+    }
+
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+
+    context.drawImage(bitmap, 0, 0);
     bitmap.close();
-    return token;
+
+    return await detectQrFromCanvas(canvas);
   } catch {
     return "";
   }
@@ -95,28 +215,38 @@ async function detectQrFromPdf(file: File) {
 
     const pdf = await loadingTask.promise;
     const page = await pdf.getPage(1);
-    const viewport = page.getViewport({ scale: 2.5 });
 
-    const canvas = document.createElement("canvas");
-    const context = canvas.getContext("2d");
+    const scales = [2.5, 3.5, 4.5];
 
-    if (!context) {
-      return "";
+    for (const scale of scales) {
+      const viewport = page.getViewport({ scale });
+
+      const canvas = document.createElement("canvas");
+      const context = canvas.getContext("2d");
+
+      if (!context) {
+        continue;
+      }
+
+      canvas.width = Math.floor(viewport.width);
+      canvas.height = Math.floor(viewport.height);
+
+      await page.render({
+        canvasContext: context,
+        viewport,
+      }).promise;
+
+      const token = await detectQrFromCanvas(canvas);
+
+      if (token) {
+        await pdf.destroy?.();
+        return token;
+      }
     }
-
-    canvas.width = Math.floor(viewport.width);
-    canvas.height = Math.floor(viewport.height);
-
-    await page.render({
-      canvasContext: context,
-      viewport,
-    }).promise;
-
-    const token = await detectWithBarcodeDetector(canvas as unknown as ImageBitmapSource);
 
     await pdf.destroy?.();
 
-    return token;
+    return "";
   } catch {
     return "";
   }

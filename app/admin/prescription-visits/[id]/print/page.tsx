@@ -74,7 +74,7 @@ export default async function PrintPrescriptionVisitPage({
           </div>
         </header>
 
-        <section className="mt-4 grid grid-cols-[1fr_130px] gap-4 rounded-2xl border border-slate-300 p-4 print:mt-3 print:grid-cols-[1fr_118px] print:gap-3 print:p-3">
+        <section className="mt-4 grid grid-cols-[1fr_150px] gap-4 rounded-2xl border border-slate-300 p-4 print:mt-3 print:grid-cols-[1fr_140px] print:gap-3 print:p-3">
           <div className="grid content-start gap-2 text-[12px] leading-4 text-slate-900 print:gap-1.5 print:text-[11px]">
             <div className="grid grid-cols-[105px_1fr] gap-2">
               <strong>Patient Name</strong>
@@ -106,7 +106,7 @@ export default async function PrintPrescriptionVisitPage({
             <img
               src={`/api/rx/${visit.uploadToken}/qr`}
               alt="Prescription QR code"
-              className="h-[102px] w-[102px] print:h-[92px] print:w-[92px]"
+              className="h-[122px] w-[122px] print:h-[112px] print:w-[112px]"
             />
             <p className="mt-1 text-[9px] font-bold leading-3 text-slate-600">
               Scan after doctor writes
