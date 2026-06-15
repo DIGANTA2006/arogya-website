@@ -62,7 +62,7 @@ export default function PrescriptionVisitManager() {
     const data = await response.json().catch(() => ({}));
 
     if (response.ok) {
-      setVisits(data.visits || []);
+      setVisits((data.visits || []).filter((visit: PrescriptionVisit) => visit.status !== "cancelled"));
     } else {
       setStatus(data.error || "Could not load prescription visits. Run Supabase SQL first.");
     }
@@ -164,6 +164,37 @@ export default function PrescriptionVisitManager() {
     setLoading(false);
   }
 
+  async function cancelVisit(id: string, rxNumber: string) {
+    const confirmed = window.confirm(
+      `Remove ${rxNumber} from active prescription sheets? This will cancel the QR so staff cannot upload against it.`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setStatus("");
+
+    const response = await fetch(`/api/admin/prescription-visits/${id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        action: "cancel",
+      }),
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      setStatus(data.detail || data.error || "Could not remove prescription sheet.");
+      return;
+    }
+
+    setVisits((previous) => previous.filter((visit) => visit.id !== id));
+    setStatus(`${rxNumber} removed from active prescription sheets.`);
+  }
   return (
     <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
       <form
@@ -416,6 +447,16 @@ export default function PrescriptionVisitManager() {
                 >
                   Open QR Page
                 </a>
+
+                {visit.status !== "uploaded" && (
+                  <button
+                    type="button"
+                    onClick={() => cancelVisit(visit.id, visit.rxNumber)}
+                    className="rounded-full bg-red-600 px-4 py-2 text-xs font-extrabold text-white"
+                  >
+                    Remove Mistake
+                  </button>
+                )}
 
                 {visit.uploadedPrescriptionToken && (
                   <a
