@@ -1,5 +1,8 @@
 ﻿import { NextResponse } from "next/server";
+import { escapeHtml } from "@/lib/html";
+import { findPatientByEmail } from "@/lib/patient-store";
 import { getPrescriptions } from "@/lib/prescription-store";
+import { sendSms } from "@/lib/sms";
 
 function isDue(dateValue: string) {
   if (!dateValue) return false;
@@ -48,28 +51,46 @@ export async function GET(request: Request) {
     (item) => isDue(item.nextTherapyDate) || isDue(item.nextAppointmentDate)
   );
 
-  let sent = 0;
+  let emailSent = 0;
+  let smsSent = 0;
 
   for (const item of due) {
-    const dates = [
+    const dateParts = [
       item.nextTherapyDate && `Next therapy: ${item.nextTherapyDate}`,
       item.nextAppointmentDate && `Next appointment: ${item.nextAppointmentDate}`,
-    ]
-      .filter(Boolean)
-      .join("<br/>");
+    ].filter(Boolean) as string[];
 
-    const ok = await sendReminderEmail(
+    const datesHtml = dateParts.map((part) => escapeHtml(part)).join("<br/>");
+    const datesText = dateParts.join(", ");
+
+    const emailOk = await sendReminderEmail(
       item.patientEmail,
       "Arogya Clinic Reminder",
-      `<p>Dear Patient,</p><p>This is a reminder from Arogya Speech Therapy & Hearing Care.</p><p>${dates}</p><p>Please contact the clinic for confirmation.</p>`
+      `<p>Dear Patient,</p><p>This is a reminder from Arogya Speech Therapy & Hearing Care.</p><p>${datesHtml}</p><p>Please contact the clinic for confirmation.</p>`
     );
 
-    if (ok) sent += 1;
+    if (emailOk) emailSent += 1;
+
+    try {
+      const patient = await findPatientByEmail(item.patientEmail);
+
+      if (patient?.phone) {
+        const sms = await sendSms(
+          patient.phone,
+          `Arogya reminder: ${datesText}. Please contact the clinic for confirmation.`
+        );
+
+        if (sms.sent) smsSent += 1;
+      }
+    } catch {
+      // Continue email reminders even if patient phone lookup fails.
+    }
   }
 
   return NextResponse.json({
     checked: prescriptions.length,
     due: due.length,
-    sent,
+    emailSent,
+    smsSent,
   });
 }

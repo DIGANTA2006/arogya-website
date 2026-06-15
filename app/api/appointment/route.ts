@@ -1,9 +1,14 @@
 ﻿import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { addAppointment } from "@/lib/appointment-store";
+import { escapeHtml } from "@/lib/html";
+import {
+  buildOnlineConsultationLink,
+  isOnlineAppointment,
+} from "@/lib/meeting-link";
 import { hasPortalRole } from "@/lib/portal-auth";
 import { findPatientByEmail } from "@/lib/patient-store";
-import { escapeHtml } from "@/lib/html";
+import { sendSms } from "@/lib/sms";
 
 type AppointmentBody = {
   age?: string;
@@ -17,6 +22,36 @@ type AppointmentBody = {
 
 function clean(value?: string) {
   return String(value || "").trim();
+}
+
+async function sendResendEmail(input: {
+  to: string[];
+  subject: string;
+  html: string;
+}) {
+  const resendApiKey = process.env.RESEND_API_KEY;
+  const fromEmail =
+    process.env.RESEND_FROM_EMAIL || "Arogya Clinic <onboarding@resend.dev>";
+
+  if (!resendApiKey || resendApiKey.includes("your_real")) {
+    return false;
+  }
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${resendApiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: fromEmail,
+      to: input.to,
+      subject: input.subject,
+      html: input.html,
+    }),
+  });
+
+  return response.ok;
 }
 
 export async function POST(request: Request) {
@@ -66,48 +101,81 @@ export async function POST(request: Request) {
       message,
     });
 
-    const resendApiKey = process.env.RESEND_API_KEY;
-    const appointmentEmail = process.env.APPOINTMENT_EMAIL;
-    const fromEmail =
-      process.env.RESEND_FROM_EMAIL || "Arogya Clinic <onboarding@resend.dev>";
+    const online = isOnlineAppointment(appointmentType);
+    const meetingLink = online ? buildOnlineConsultationLink(appointment.id) : "";
+    const clinicEmail = process.env.APPOINTMENT_EMAIL;
 
-    if (
-      resendApiKey &&
-      appointmentEmail &&
-      !resendApiKey.includes("your_real")
-    ) {
-      const emailHtml = `
-        <h2>New Appointment Request</h2>
-        <p><strong>Lead ID:</strong> ${escapeHtml(appointment.id)}</p>
-        <p><strong>Name:</strong> ${escapeHtml(appointment.name)}</p>
-        <p><strong>Age:</strong> ${escapeHtml(appointment.age || "Not provided")}</p>
-        <p><strong>Phone:</strong> ${escapeHtml(appointment.phone)}</p>
-        <p><strong>Email:</strong> ${escapeHtml(appointment.email || "Not provided")}</p>
-        <p><strong>Service:</strong> ${escapeHtml(appointment.service)}</p>
-        <p><strong>Appointment Type:</strong> ${escapeHtml(appointment.appointmentType)}</p>
-        <p><strong>Date:</strong> ${escapeHtml(appointment.date)}</p>
-        <p><strong>Time:</strong> ${escapeHtml(appointment.time)}</p>
-        <p><strong>Message:</strong> ${escapeHtml(appointment.message || "No message")}</p>
-      `;
+    const adminHtml = `
+      <h2>New Appointment Request</h2>
+      <p><strong>Lead ID:</strong> ${escapeHtml(appointment.id)}</p>
+      <p><strong>Name:</strong> ${escapeHtml(appointment.name)}</p>
+      <p><strong>Age:</strong> ${escapeHtml(appointment.age || "Not provided")}</p>
+      <p><strong>Phone:</strong> ${escapeHtml(appointment.phone)}</p>
+      <p><strong>Email:</strong> ${escapeHtml(appointment.email || "Not provided")}</p>
+      <p><strong>Service:</strong> ${escapeHtml(appointment.service)}</p>
+      <p><strong>Appointment Type:</strong> ${escapeHtml(appointment.appointmentType)}</p>
+      <p><strong>Date:</strong> ${escapeHtml(appointment.date)}</p>
+      <p><strong>Time:</strong> ${escapeHtml(appointment.time)}</p>
+      ${
+        meetingLink
+          ? `<p><strong>Online Meeting Link:</strong> <a href="${escapeHtml(meetingLink)}">${escapeHtml(meetingLink)}</a></p>`
+          : ""
+      }
+      <p><strong>Message:</strong> ${escapeHtml(appointment.message || "No message")}</p>
+    `;
 
-      await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${resendApiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          from: fromEmail,
-          to: [appointmentEmail],
+    const patientHtml = `
+      <h2>Your appointment request was received</h2>
+      <p>Dear ${escapeHtml(appointment.name)},</p>
+      <p>Your appointment request has been received by Arogya Speech Therapy & Hearing Care.</p>
+      <p><strong>Service:</strong> ${escapeHtml(appointment.service)}</p>
+      <p><strong>Appointment Type:</strong> ${escapeHtml(appointment.appointmentType)}</p>
+      <p><strong>Date:</strong> ${escapeHtml(appointment.date)}</p>
+      <p><strong>Time:</strong> ${escapeHtml(appointment.time)}</p>
+      ${
+        meetingLink
+          ? `<p><strong>Online Meeting Link:</strong> <a href="${escapeHtml(meetingLink)}">${escapeHtml(meetingLink)}</a></p>`
+          : `<p><strong>Clinic:</strong> Opposite Devi ka Bagh, near Dagar Gaire, Sanchi Road, Vidisha 464001</p>`
+      }
+      <p>The clinic may contact you for confirmation if required.</p>
+    `;
+
+    const emailTasks: Promise<boolean>[] = [];
+
+    if (clinicEmail) {
+      emailTasks.push(
+        sendResendEmail({
+          to: [clinicEmail],
           subject: `New Appointment Request - ${appointment.service}`,
-          html: emailHtml,
-        }),
-      });
+          html: adminHtml,
+        })
+      );
+    }
+
+    if (patientEmail) {
+      emailTasks.push(
+        sendResendEmail({
+          to: [patientEmail],
+          subject: "Arogya Appointment Request Received",
+          html: patientHtml,
+        })
+      );
+    }
+
+    await Promise.allSettled(emailTasks);
+
+    const smsMessage = meetingLink
+      ? `Arogya appointment received: ${service} on ${date} at ${time}. Online link: ${meetingLink}`
+      : `Arogya appointment received: ${service} on ${date} at ${time}. Clinic: Sanchi Road, Vidisha.`;
+
+    if (phone) {
+      await sendSms(phone, smsMessage);
     }
 
     return NextResponse.json({
       success: true,
       appointmentId: appointment.id,
+      meetingLink: meetingLink || null,
       message: "Appointment booked successfully.",
     });
   } catch (error) {
