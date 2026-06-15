@@ -36,12 +36,12 @@ export default function Home() {
       <FaqSection />
       <ContactSection />
       <FinalCtaSection />
-      <Footer />
+            <ProductionTrustSections />
+<Footer />
       <FloatingButtons />
       <ChatBot />
       <PortalAccessButton />
     
-      <ProductionTrustSections />
 </main>
   );
 }
