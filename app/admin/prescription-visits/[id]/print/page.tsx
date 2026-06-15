@@ -119,7 +119,25 @@ export default async function PrintPrescriptionVisitPage({
             Doctor Notes / Prescription
           </h2>
 
-          <div className="mt-3 h-[690px] print:h-[210mm]" />
+          <div className="relative mt-3 h-[690px] overflow-hidden rounded-xl print:h-[210mm]">
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              <img
+                src="/arogya-logo.png"
+                alt="Arogya watermark"
+                className="h-[240px] w-[240px] object-contain print:h-[220px] print:w-[220px]"
+                style={{ opacity: 0.06 }}
+              />
+            </div>
+
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              <p
+                className="mt-[180px] text-center text-[18px] font-bold uppercase tracking-[0.35em] text-slate-400 print:text-[16px]"
+                style={{ opacity: 0.08 }}
+              >
+                Arogya Speech Therapy & Hearing Care
+              </p>
+            </div>
+          </div>
         </section>
       </section>
     </main>
