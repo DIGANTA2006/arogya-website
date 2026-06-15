@@ -1,3 +1,4 @@
+﻿import ProductionTrustSections from "@/components/production-trust-sections";
 import GallerySection from "@/components/gallery-section";
 import Navbar from "@/components/navbar";
 import HeroSection from "@/components/hero-section";
@@ -39,6 +40,8 @@ export default function Home() {
       <FloatingButtons />
       <ChatBot />
       <PortalAccessButton />
-    </main>
+    
+      <ProductionTrustSections />
+</main>
   );
 }
