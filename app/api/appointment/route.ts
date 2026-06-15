@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { addAppointment } from "@/lib/appointment-store";
 import { hasPortalRole } from "@/lib/portal-auth";
 import { findPatientByEmail } from "@/lib/patient-store";
+import { escapeHtml } from "@/lib/html";
 
 type AppointmentBody = {
   age?: string;
@@ -67,6 +68,8 @@ export async function POST(request: Request) {
 
     const resendApiKey = process.env.RESEND_API_KEY;
     const appointmentEmail = process.env.APPOINTMENT_EMAIL;
+    const fromEmail =
+      process.env.RESEND_FROM_EMAIL || "Arogya Clinic <onboarding@resend.dev>";
 
     if (
       resendApiKey &&
@@ -75,16 +78,16 @@ export async function POST(request: Request) {
     ) {
       const emailHtml = `
         <h2>New Appointment Request</h2>
-        <p><strong>Lead ID:</strong> ${appointment.id}</p>
-        <p><strong>Name:</strong> ${appointment.name}</p>
-        <p><strong>Age:</strong> ${appointment.age || "Not provided"}</p>
-        <p><strong>Phone:</strong> ${appointment.phone}</p>
-        <p><strong>Email:</strong> ${appointment.email || "Not provided"}</p>
-        <p><strong>Service:</strong> ${appointment.service}</p>
-        <p><strong>Appointment Type:</strong> ${appointment.appointmentType}</p>
-        <p><strong>Date:</strong> ${appointment.date}</p>
-        <p><strong>Time:</strong> ${appointment.time}</p>
-        <p><strong>Message:</strong> ${appointment.message || "No message"}</p>
+        <p><strong>Lead ID:</strong> ${escapeHtml(appointment.id)}</p>
+        <p><strong>Name:</strong> ${escapeHtml(appointment.name)}</p>
+        <p><strong>Age:</strong> ${escapeHtml(appointment.age || "Not provided")}</p>
+        <p><strong>Phone:</strong> ${escapeHtml(appointment.phone)}</p>
+        <p><strong>Email:</strong> ${escapeHtml(appointment.email || "Not provided")}</p>
+        <p><strong>Service:</strong> ${escapeHtml(appointment.service)}</p>
+        <p><strong>Appointment Type:</strong> ${escapeHtml(appointment.appointmentType)}</p>
+        <p><strong>Date:</strong> ${escapeHtml(appointment.date)}</p>
+        <p><strong>Time:</strong> ${escapeHtml(appointment.time)}</p>
+        <p><strong>Message:</strong> ${escapeHtml(appointment.message || "No message")}</p>
       `;
 
       await fetch("https://api.resend.com/emails", {
@@ -94,7 +97,7 @@ export async function POST(request: Request) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          from: "Appointment <onboarding@resend.dev>",
+          from: fromEmail,
           to: [appointmentEmail],
           subject: `New Appointment Request - ${appointment.service}`,
           html: emailHtml,
@@ -114,6 +117,3 @@ export async function POST(request: Request) {
     );
   }
 }
-
-
-

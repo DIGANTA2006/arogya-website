@@ -1,6 +1,5 @@
-import ReviewPopup from "@/components/review-popup";
+﻿import ReviewPopup from "@/components/review-popup";
 import ChatPositionFix from "@/components/chat-position-fix";
-import SiteCopyProtection from "@/components/site-copy-protection";
 import type { Metadata } from "next";
 import "./globals.css";
 
@@ -78,12 +77,7 @@ export default function RootLayout({
           }}
         />
         {children}
-              
-              <SiteCopyProtection />
-              
-              
-              
-              <ReviewPopup />
+<ReviewPopup />
         <ChatPositionFix />
       </body>
     </html>
