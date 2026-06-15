@@ -8,3 +8,8 @@ out
 *.zip
 tsconfig.tsbuildinfo
 data/*.json
+
+# Local ChatGPT backup folders
+_backup*/
+.next/
+node_modules/

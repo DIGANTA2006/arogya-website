@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Poppins:wght@400;500;600;700;800&display=swap');
+﻿@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Poppins:wght@400;500;600;700;800&display=swap');
 
 @import 'tailwindcss';
 @import 'tw-animate-css';
@@ -228,9 +228,12 @@ body {
   z-index: 90 !important;
 }
 
-/* Make sure navbar Portal Login stays visible */
-header a[href="/portal"] {
-  display: inline-flex !important;
+/* Desktop-only navbar Portal Login.
+   Do not force Portal Login visible on mobile. */
+@media (min-width: 1024px) {
+  header a[href="/portal"].portal-login-top-mobile-hide {
+    display: inline-flex !important;
+  }
 }
 /* REMOVE_OLD_FLOATING_PORTAL */
 .floating-portal,
@@ -549,3 +552,13 @@ button {
 }
 /* ===== End Portal Login mobile fix ===== */
 
+
+/* ===== FINAL FIX: prevent top Portal Login from covering clinic name ===== */
+@media (max-width: 1023px) {
+  header a[href="/portal"].portal-login-top-mobile-hide {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+}
+/* ===== END FINAL PORTAL LOGIN MOBILE FIX ===== */

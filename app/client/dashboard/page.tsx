@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
@@ -37,6 +37,16 @@ type Prescription = {
   download_url?: string;
   qrUrl?: string;
   qr_url?: string;
+  securePageUrl?: string;
+  secure_page_url?: string;
+  qrImageUrl?: string;
+  qr_image_url?: string;
+  nextTherapyDate?: string;
+  next_therapy_date?: string;
+  nextAppointmentDate?: string;
+  next_appointment_date?: string;
+  status?: string;
+  source?: string;
 };
 
 type Profile = {
@@ -373,6 +383,18 @@ export default function ClientDashboardPage() {
                       Uploaded: {createdAt ? new Date(createdAt).toLocaleDateString() : "-"}
                     </p>
 
+                    {(prescription.nextTherapyDate || prescription.next_therapy_date) && (
+                      <p>
+                        Next therapy: {prescription.nextTherapyDate || prescription.next_therapy_date}
+                      </p>
+                    )}
+
+                    {(prescription.nextAppointmentDate || prescription.next_appointment_date) && (
+                      <p>
+                        Next appointment: {prescription.nextAppointmentDate || prescription.next_appointment_date}
+                      </p>
+                    )}
+
                     <div className="prescription-actions">
                       {downloadUrl && (
                         <a href={downloadUrl} className="dash-btn dash-btn-dark">
@@ -383,7 +405,7 @@ export default function ClientDashboardPage() {
 
                       {qrUrl && (
                         <a href={qrUrl} target="_blank" className="dash-btn dash-btn-light">
-                          Open QR
+                          Open Secure Page
                         </a>
                       )}
                     </div>

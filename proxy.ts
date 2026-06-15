@@ -1,4 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
+
+type PortalRole = "admin" | "client";
+
+function normalizePortalSubject(subject: string) {
+  return String(subject || "").trim().toLowerCase();
+}
 
 async function createSignature(value: string) {
   const secret = process.env.AUTH_SECRET || "change-this-secret-before-production";
@@ -31,15 +37,24 @@ function safeEqual(a: string, b: string) {
   return result === 0;
 }
 
-async function isValidSession(request: NextRequest, requiredRole: "admin" | "client") {
+async function createPortalToken(role: PortalRole, subject: string) {
+  return createSignature(`${role}:${normalizePortalSubject(subject)}`);
+}
+
+async function isValidSession(request: NextRequest, requiredRole: PortalRole) {
   const role = request.cookies.get("portal_role")?.value;
   const token = request.cookies.get("portal_token")?.value;
+  const subject = normalizePortalSubject(
+    request.cookies.get("portal_subject")?.value ||
+      request.cookies.get("portal_email")?.value ||
+      ""
+  );
 
-  if (role !== requiredRole || !token) {
+  if (role !== requiredRole || !token || !subject) {
     return false;
   }
 
-  const expectedToken = await createSignature(requiredRole);
+  const expectedToken = await createPortalToken(requiredRole, subject);
 
   return safeEqual(token, expectedToken);
 }
@@ -51,6 +66,8 @@ export async function proxy(request: NextRequest) {
     path.startsWith("/admin/dashboard") ||
     path.startsWith("/admin/appointments") ||
     path.startsWith("/admin/prescriptions") ||
+    path.startsWith("/admin/prescription-visits") ||
+    path.startsWith("/admin/scanner") ||
     path.startsWith("/admin/reviews")
   ) {
     const valid = await isValidSession(request, "admin");
@@ -76,6 +93,8 @@ export const config = {
     "/admin/dashboard/:path*",
     "/admin/appointments/:path*",
     "/admin/prescriptions/:path*",
+    "/admin/prescription-visits/:path*",
+    "/admin/scanner/:path*",
     "/admin/reviews/:path*",
     "/client/dashboard/:path*",
     "/client/profile/:path*",

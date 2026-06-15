@@ -1,9 +1,21 @@
 ﻿const cards = [
   {
-    title: "Prescription Upload",
-    text: "Upload patient prescriptions/reports, add next therapy dates, and generate QR secure download links.",
+    title: "Scanner Upload",
+    text: "Upload scanned handwritten prescriptions using QR token auto-matching.",
+    link: "/admin/scanner",
+    button: "Open Scanner",
+  },
+  {
+    title: "Smart Prescription Sheets",
+    text: "Reception creates QR prescription sheets before the doctor writes by hand.",
+    link: "/admin/prescription-visits",
+    button: "Create Sheet",
+  },
+  {
+    title: "Prescription Archive",
+    text: "View uploaded prescriptions. New uploads should happen through Scanner Upload.",
     link: "/admin/prescriptions",
-    button: "Upload Files",
+    button: "View Archive",
   },
   {
     title: "Patient Reviews",

@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { Clock, MapPin, Phone } from 'lucide-react'
 
@@ -83,7 +83,7 @@ export default function Footer() {
               <div className="flex items-start gap-2">
                 <Clock size={15} className="mt-0.5 flex-shrink-0 text-white/40" />
                 <div className="text-sm text-white/65">
-                  <p>Mon – Sat: 9 AM – 7 PM</p>
+                  <p>Mon – Sat: 11 AM – 8 PM</p>
                   <p>Sun: By Appointment</p>
                 </div>
               </div>

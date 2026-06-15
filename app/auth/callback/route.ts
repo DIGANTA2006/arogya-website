@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 
@@ -157,7 +157,8 @@ export async function GET(request: NextRequest) {
   try {
     const patient = await upsertPatient(email, name);
     const role = "client";
-    const token = await createSignature(role);
+    const subject = patient.email.toLowerCase();
+    const token = await createSignature(`${role}:${subject}`);
 
     const response = NextResponse.redirect(
       new URL("/client/dashboard", request.url)
@@ -177,7 +178,8 @@ export async function GET(request: NextRequest) {
 
     response.cookies.set("portal_role", role, cookieOptions);
     response.cookies.set("portal_token", token, cookieOptions);
-    response.cookies.set("portal_email", patient.email, cookieOptions);
+    response.cookies.set("portal_subject", subject, cookieOptions);
+    response.cookies.set("portal_email", subject, cookieOptions);
     response.cookies.set("portal_name", patient.name, cookieOptions);
 
     return response;

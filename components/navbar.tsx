@@ -98,14 +98,14 @@ export default function Navbar() {
           <div className="flex items-center gap-3">
             <a
               href="/portal"
-              className="hidden rounded-full bg-slate-900 px-5 py-2.5 text-sm font-bold text-white shadow-md transition-all duration-200 hover:scale-105 hover:bg-slate-800 sm:inline-flex portal-login-top-mobile-hide max-md:hidden"
+              className="hidden rounded-full bg-slate-900 px-5 py-2.5 text-sm font-bold text-white shadow-md transition-all duration-200 hover:scale-105 hover:bg-slate-800 lg:inline-flex portal-login-top-mobile-hide"
             >
               Portal Login
             </a>
 
             <button
               onClick={() => handleNavClick("#appointment")}
-              className="hidden rounded-full px-5 py-2.5 text-sm font-bold text-white shadow-md transition-all duration-200 hover:scale-105 sm:inline-flex"
+              className="hidden rounded-full px-5 py-2.5 text-sm font-bold text-white shadow-md transition-all duration-200 hover:scale-105 lg:inline-flex"
               style={{ background: "var(--warm-orange)" }}
             >
               Book Appointment

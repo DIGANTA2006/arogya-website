@@ -1,3 +1,4 @@
+﻿import bcrypt from "bcryptjs";
 import { createHash } from "crypto";
 import { mkdir, readFile, writeFile } from "fs/promises";
 import { join } from "path";
@@ -27,8 +28,44 @@ async function ensureFile() {
   }
 }
 
-export function hashPassword(password: string) {
+function legacySha256(password: string) {
   return createHash("sha256").update(password).digest("hex");
+}
+
+function safeEqualString(a: string, b: string) {
+  if (a.length !== b.length) return false;
+
+  let result = 0;
+
+  for (let i = 0; i < a.length; i += 1) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+
+  return result === 0;
+}
+
+export function isLegacyPasswordHash(hash: string) {
+  return /^[a-f0-9]{64}$/i.test(String(hash || ""));
+}
+
+export async function hashPassword(password: string) {
+  return bcrypt.hash(password, 12);
+}
+
+export async function verifyPassword(password: string, storedHash: string) {
+  const hash = String(storedHash || "");
+
+  if (!hash) return false;
+
+  if (hash.startsWith("$2a$") || hash.startsWith("$2b$") || hash.startsWith("$2y$")) {
+    return bcrypt.compare(password, hash);
+  }
+
+  if (isLegacyPasswordHash(hash)) {
+    return safeEqualString(legacySha256(password), hash);
+  }
+
+  return false;
 }
 
 function mapSupabasePatient(row: any): Patient {
@@ -75,6 +112,29 @@ export async function savePatients(patients: Patient[]) {
   await writeFile(filePath, JSON.stringify(patients, null, 2), "utf8");
 }
 
+export async function updatePatientPasswordHash(emailInput: string, passwordHash: string) {
+  const email = emailInput.toLowerCase();
+  const supabase = getSupabaseAdmin();
+
+  if (supabase) {
+    await supabase
+      .from("patients")
+      .update({ password_hash: passwordHash })
+      .eq("email", email);
+
+    return;
+  }
+
+  const patients = await getPatients();
+  const updated = patients.map((patient) =>
+    patient.email.toLowerCase() === email
+      ? { ...patient, passwordHash }
+      : patient
+  );
+
+  await savePatients(updated);
+}
+
 export async function createPatient(input: {
   name: string;
   age: string;
@@ -100,7 +160,7 @@ export async function createPatient(input: {
         age: input.age,
         phone: input.phone,
         email,
-        password_hash: hashPassword(input.password),
+        password_hash: await hashPassword(input.password),
         mobile_verified: Boolean(input.mobileVerified),
       })
       .select()
@@ -129,7 +189,7 @@ export async function createPatient(input: {
     age: input.age,
     phone: input.phone,
     email,
-    passwordHash: hashPassword(input.password),
+    passwordHash: await hashPassword(input.password),
     mobileVerified: Boolean(input.mobileVerified),
     createdAt: new Date().toISOString(),
   };

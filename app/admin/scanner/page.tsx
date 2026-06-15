@@ -1,20 +1,20 @@
-﻿import PrescriptionManager from "@/components/admin/prescription-manager";
+﻿import ScannerUploadPanel from "@/components/admin/scanner-upload-panel";
 
-export default function AdminPrescriptionsPage() {
+export default function AdminScannerPage() {
   return (
     <main className="min-h-screen bg-secondary/40">
       <header className="border-b border-border bg-white py-5">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 sm:px-6 lg:px-8 md:flex-row md:items-center md:justify-between">
           <div>
             <strong className="text-2xl text-foreground">
-              Prescription Archive
+              Prescription Scanner Upload
             </strong>
             <p className="mt-1 text-sm text-muted-foreground">
-              View uploaded prescriptions. New uploads should use QR scanner workflow.
+              Scan handwritten prescriptions and upload them to the correct patient account.
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-2">
             <a
               href="/admin/dashboard"
               className="rounded-full border border-border bg-white px-5 py-2.5 text-sm font-bold text-foreground"
@@ -23,24 +23,18 @@ export default function AdminPrescriptionsPage() {
             </a>
 
             <a
-              href="/admin/scanner"
+              href="/admin/prescription-visits"
               className="rounded-full bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground"
             >
-              Scanner Upload
+              QR Sheets
             </a>
-
-            <form action="/api/auth/logout" method="post">
-              <button className="rounded-full border border-border bg-white px-5 py-2.5 text-sm font-bold text-foreground">
-                Logout
-              </button>
-            </form>
           </div>
         </div>
       </header>
 
-      <section className="py-14 lg:py-20">
+      <section className="py-10 lg:py-14">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <PrescriptionManager />
+          <ScannerUploadPanel />
         </div>
       </section>
     </main>

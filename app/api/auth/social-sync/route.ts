@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
-import { createSignature } from "../auth-utils";
+﻿import { NextResponse } from "next/server";
+import { createPortalToken } from "@/lib/portal-auth";
 import { createPatient, findPatientByEmail } from "@/lib/patient-store";
 
 type Body = {
@@ -34,7 +34,8 @@ export async function POST(request: Request) {
   }
 
   const role = "client";
-  const token = await createSignature(role);
+  const token = await createPortalToken(role, patient.email);
+  const subject = patient.email.toLowerCase();
 
   const response = NextResponse.json({ success: true });
 
@@ -48,7 +49,8 @@ export async function POST(request: Request) {
 
   response.cookies.set("portal_role", role, cookieOptions);
   response.cookies.set("portal_token", token, cookieOptions);
-  response.cookies.set("portal_email", patient.email, cookieOptions);
+  response.cookies.set("portal_subject", subject, cookieOptions);
+  response.cookies.set("portal_email", subject, cookieOptions);
   response.cookies.set("portal_name", patient.name, cookieOptions);
 
   return response;
