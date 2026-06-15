@@ -13,3 +13,4 @@ data/*.json
 _backup*/
 .next/
 node_modules/
+*.log
