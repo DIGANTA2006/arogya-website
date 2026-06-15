@@ -153,6 +153,10 @@ export default function PrescriptionVisitManager() {
     setStatus(
       `${data.visit.rxNumber} created successfully. ${
         data.patientCreated ? "New patient account record created." : "Existing patient linked."
+      } ${
+        data.setupEmailSent
+          ? "Password setup email sent to patient."
+          : "If patient has no password, they can use Forgot Password to set one."
       }`
     );
 

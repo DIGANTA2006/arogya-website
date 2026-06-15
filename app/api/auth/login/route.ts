@@ -111,7 +111,7 @@ export async function POST(request: Request) {
 
     if (!patient.passwordHash) {
       return NextResponse.json(
-        { error: "This account was created using Google. Please continue with Google login." },
+        { error: "No password is set for this account. Please use the password setup email sent by the clinic, or click Forgot Password to create your password." },
         { status: 401 }
       );
     }
