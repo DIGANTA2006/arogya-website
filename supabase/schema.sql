@@ -79,3 +79,61 @@ add column if not exists prescription_visit_id uuid;
 
 alter table prescriptions
 add column if not exists rx_number text;
+-- =====================================================
+-- Phase 6G: Forgot password + email verification support
+-- =====================================================
+
+alter table if exists public.patients
+add column if not exists email_verified boolean not null default false;
+
+create table if not exists public.password_reset_requests (
+  id uuid primary key default gen_random_uuid(),
+  patient_email text not null,
+  token_hash text not null unique,
+  expires_at timestamptz not null,
+  used_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_password_reset_requests_token_hash
+on public.password_reset_requests(token_hash);
+
+create index if not exists idx_password_reset_requests_patient_email
+on public.password_reset_requests(patient_email);
+
+create table if not exists public.email_verification_tokens (
+  id uuid primary key default gen_random_uuid(),
+  patient_email text not null,
+  token_hash text not null unique,
+  expires_at timestamptz not null,
+  used_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_email_verification_tokens_token_hash
+on public.email_verification_tokens(token_hash);
+
+create index if not exists idx_email_verification_tokens_patient_email
+on public.email_verification_tokens(patient_email);
+
+alter table public.password_reset_requests enable row level security;
+alter table public.email_verification_tokens enable row level security;
+
+drop policy if exists "Service role full access for password reset requests" on public.password_reset_requests;
+create policy "Service role full access for password reset requests"
+on public.password_reset_requests
+for all
+to service_role
+using (true)
+with check (true);
+
+drop policy if exists "Service role full access for email verification tokens" on public.email_verification_tokens;
+create policy "Service role full access for email verification tokens"
+on public.email_verification_tokens
+for all
+to service_role
+using (true)
+with check (true);
+
+grant all privileges on table public.password_reset_requests to service_role;
+grant all privileges on table public.email_verification_tokens to service_role;

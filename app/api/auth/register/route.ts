@@ -1,8 +1,15 @@
 ﻿import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { createPatient } from "@/lib/patient-store";
+import {
+  generateSecureToken,
+  getSiteUrl,
+  hashToken,
+  sendAuthEmail,
+} from "@/lib/auth-email";
 import { cleanPhone } from "@/lib/mobile-otp-store";
+import { createPatient } from "@/lib/patient-store";
 import { checkRateLimit, getRequestIp, rateLimitPayload } from "@/lib/rate-limit";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
 type RegisterBody = {
   name?: string;
@@ -80,6 +87,31 @@ export async function POST(request: Request) {
       mobileVerified: true,
     });
 
+    try {
+      const supabase = getSupabaseAdmin();
+      const token = generateSecureToken();
+      const tokenHash = hashToken(token);
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+      await supabase.from("email_verification_tokens").insert({
+        patient_email: email,
+        token_hash: tokenHash,
+        expires_at: expiresAt,
+        used_at: null,
+      });
+
+      await sendAuthEmail({
+        to: email,
+        subject: "Verify your Arogya patient portal email",
+        title: "Verify your email address",
+        message: "Please verify your email address for your Arogya patient portal account. This link will expire in 24 hours.",
+        actionText: "Verify Email",
+        actionUrl: `${getSiteUrl()}/api/auth/verify-email/${token}`,
+      });
+    } catch {
+      // Account creation should not fail if email verification email cannot be sent.
+    }
+
     const response = NextResponse.json({
       success: true,
       patient: {
@@ -87,6 +119,7 @@ export async function POST(request: Request) {
         name: patient.name,
         email: patient.email,
       },
+      message: "Account created successfully. Please check your email for verification.",
     });
 
     response.cookies.set("verified_mobile", "", {
