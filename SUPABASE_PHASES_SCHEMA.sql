@@ -131,3 +131,10 @@ with check (true);
 
 grant all privileges on table public.password_reset_requests to service_role;
 grant all privileges on table public.email_verification_tokens to service_role;
+
+-- =====================================================
+-- Phase 6H: Appointment slot lookup optimization
+-- =====================================================
+
+create index if not exists idx_appointments_date_time
+on public.appointments(date, time);

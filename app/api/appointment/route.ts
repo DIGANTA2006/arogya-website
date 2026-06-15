@@ -1,5 +1,9 @@
 ﻿import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import {
+  normalizeTime,
+  validateAppointmentSlot,
+} from "@/lib/appointment-slots";
 import { addAppointment } from "@/lib/appointment-store";
 import { escapeHtml } from "@/lib/html";
 import {
@@ -79,12 +83,21 @@ export async function POST(request: Request) {
     const service = clean(body.service);
     const appointmentType = clean(body.appointmentType || "Clinic Visit");
     const date = clean(body.date);
-    const time = clean(body.time);
+    const time = normalizeTime(clean(body.time));
     const message = clean(body.message);
 
     if (!phone || !service || !date || !time) {
       return NextResponse.json(
         { error: "Phone, service, date and time are required." },
+        { status: 400 }
+      );
+    }
+
+    const slotValidation = await validateAppointmentSlot(date, time);
+
+    if (!slotValidation.ok || !slotValidation.date || !slotValidation.time) {
+      return NextResponse.json(
+        { error: slotValidation.error || "This appointment slot is not available." },
         { status: 400 }
       );
     }
@@ -96,8 +109,8 @@ export async function POST(request: Request) {
       email: patientEmail,
       service,
       appointmentType,
-      date,
-      time,
+      date: slotValidation.date,
+      time: slotValidation.time,
       message,
     });
 
@@ -165,8 +178,8 @@ export async function POST(request: Request) {
     await Promise.allSettled(emailTasks);
 
     const smsMessage = meetingLink
-      ? `Arogya appointment received: ${service} on ${date} at ${time}. Online link: ${meetingLink}`
-      : `Arogya appointment received: ${service} on ${date} at ${time}. Clinic: Sanchi Road, Vidisha.`;
+      ? `Arogya appointment received: ${service} on ${slotValidation.date} at ${slotValidation.time}. Online link: ${meetingLink}`
+      : `Arogya appointment received: ${service} on ${slotValidation.date} at ${slotValidation.time}. Clinic: Sanchi Road, Vidisha.`;
 
     if (phone) {
       await sendSms(phone, smsMessage);
