@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useEffect, useState } from "react";
+import jsQR from "jsqr";
 
 type BarcodeDetectorConstructor = new (options?: {
   formats?: string[];
@@ -57,6 +58,28 @@ function extractToken(input: string) {
     .trim();
 }
 
+function detectWithJsQr(canvas: HTMLCanvasElement) {
+  try {
+    const context = canvas.getContext("2d", {
+      willReadFrequently: true,
+    });
+
+    if (!context) {
+      return "";
+    }
+
+    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+
+    const result = jsQR(imageData.data, imageData.width, imageData.height, {
+      inversionAttempts: "attemptBoth",
+    });
+
+    return extractToken(result?.data || "");
+  } catch {
+    return "";
+  }
+}
+
 async function detectWithBarcodeDetector(source: ImageBitmapSource) {
   if (!window.BarcodeDetector) {
     return "";
@@ -91,7 +114,9 @@ function cropCanvas(
   height: number
 ) {
   const crop = document.createElement("canvas");
-  const context = crop.getContext("2d");
+  const context = crop.getContext("2d", {
+    willReadFrequently: true,
+  });
 
   if (!context) {
     return null;
@@ -116,42 +141,44 @@ function cropCanvas(
 }
 
 async function detectQrFromCanvas(canvas: HTMLCanvasElement) {
-  const fullPageToken = await detectWithBarcodeDetector(
+  const jsQrToken = detectWithJsQr(canvas);
+
+  if (jsQrToken) {
+    return jsQrToken;
+  }
+
+  const barcodeToken = await detectWithBarcodeDetector(
     canvas as unknown as ImageBitmapSource
   );
 
-  if (fullPageToken) {
-    return fullPageToken;
+  if (barcodeToken) {
+    return barcodeToken;
   }
 
   const cropAreas = [
-    // Top right area where the QR usually sits.
     {
-      x: canvas.width * 0.62,
+      x: canvas.width * 0.58,
       y: 0,
-      width: canvas.width * 0.38,
-      height: canvas.height * 0.34,
+      width: canvas.width * 0.42,
+      height: canvas.height * 0.38,
     },
-    // Top center/right, for older layouts.
     {
-      x: canvas.width * 0.35,
+      x: canvas.width * 0.30,
       y: 0,
-      width: canvas.width * 0.45,
-      height: canvas.height * 0.36,
+      width: canvas.width * 0.55,
+      height: canvas.height * 0.40,
     },
-    // Whole top area.
     {
       x: 0,
       y: 0,
       width: canvas.width,
-      height: canvas.height * 0.42,
+      height: canvas.height * 0.45,
     },
-    // Middle area fallback.
     {
-      x: canvas.width * 0.20,
-      y: canvas.height * 0.15,
-      width: canvas.width * 0.60,
-      height: canvas.height * 0.40,
+      x: canvas.width * 0.15,
+      y: canvas.height * 0.10,
+      width: canvas.width * 0.70,
+      height: canvas.height * 0.45,
     },
   ];
 
@@ -168,12 +195,18 @@ async function detectQrFromCanvas(canvas: HTMLCanvasElement) {
       continue;
     }
 
-    const token = await detectWithBarcodeDetector(
+    const tokenFromJsQr = detectWithJsQr(cropped);
+
+    if (tokenFromJsQr) {
+      return tokenFromJsQr;
+    }
+
+    const tokenFromBarcodeDetector = await detectWithBarcodeDetector(
       cropped as unknown as ImageBitmapSource
     );
 
-    if (token) {
-      return token;
+    if (tokenFromBarcodeDetector) {
+      return tokenFromBarcodeDetector;
     }
   }
 
@@ -184,7 +217,9 @@ async function detectQrFromImage(file: File) {
   try {
     const bitmap = await createImageBitmap(file);
     const canvas = document.createElement("canvas");
-    const context = canvas.getContext("2d");
+    const context = canvas.getContext("2d", {
+      willReadFrequently: true,
+    });
 
     if (!context) {
       bitmap.close();
@@ -205,24 +240,27 @@ async function detectQrFromImage(file: File) {
 
 async function detectQrFromPdf(file: File) {
   try {
-    const pdfjs = await import("pdfjs-dist");
+    const pdfjsLib = (await import("pdfjs-dist/build/pdf")) as any;
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.mjs";
 
     const arrayBuffer = await file.arrayBuffer();
-    const loadingTask = (pdfjs as any).getDocument({
+
+    const loadingTask = pdfjsLib.getDocument({
       data: new Uint8Array(arrayBuffer),
-      disableWorker: true,
     });
 
     const pdf = await loadingTask.promise;
     const page = await pdf.getPage(1);
 
-    const scales = [2.5, 3.5, 4.5];
+    const scales = [2.5, 3.5, 4.5, 5.5];
 
     for (const scale of scales) {
       const viewport = page.getViewport({ scale });
 
       const canvas = document.createElement("canvas");
-      const context = canvas.getContext("2d");
+      const context = canvas.getContext("2d", {
+        willReadFrequently: true,
+      });
 
       if (!context) {
         continue;
@@ -251,7 +289,6 @@ async function detectQrFromPdf(file: File) {
     return "";
   }
 }
-
 async function detectTokenFromFile(file: File) {
   if (!window.BarcodeDetector) {
     return {
@@ -443,7 +480,7 @@ export default function ScannerUploadPanel() {
   function clearAll() {
     setItems([]);
     setStatus("");
-    setManualToken("");
+    // Keep manualToken so staff can reuse it after clearing file list.
     setNextTherapyDate("");
     setNextAppointmentDate("");
   }
@@ -486,9 +523,9 @@ export default function ScannerUploadPanel() {
             </p>
           </div>
 
-          <details className="rounded-2xl border border-border bg-white p-4">
+          <details open className="rounded-2xl border border-border bg-white p-4">
             <summary className="cursor-pointer text-sm font-extrabold text-foreground">
-              Advanced manual fallback
+              Enter token manually if QR is not detected
             </summary>
 
             <div className="mt-4 grid gap-3">
@@ -496,7 +533,7 @@ export default function ScannerUploadPanel() {
                 className="field min-h-20"
                 value={manualToken}
                 onChange={(event) => setManualToken(event.target.value)}
-                placeholder="Paste /rx/... URL or token only if QR was not detected"
+                placeholder="Paste the printed /rx/... URL or QR token here"
               />
 
               <button
@@ -623,7 +660,7 @@ export default function ScannerUploadPanel() {
                   onChange={(event) =>
                     updateItem(item.id, {
                       token: extractToken(event.target.value),
-                      status: event.target.value ? "manual" : "manual",
+                      status: event.target.value ? "manual" : "waiting",
                       message: event.target.value ? "Manual token entered." : "Token missing.",
                     })
                   }

@@ -30,6 +30,9 @@ export default async function PrintPrescriptionVisitPage({
     year: "numeric",
   });
 
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "").replace(/\/$/, "");
+  const rxUrl = siteUrl ? `${siteUrl}/rx/${visit.uploadToken}` : `/rx/${visit.uploadToken}`;
+
   return (
     <main className="min-h-screen bg-slate-100 p-4 print:bg-white print:p-0">
       <div className="mx-auto mb-4 flex max-w-5xl flex-wrap items-center justify-between gap-3 print:hidden">
@@ -110,6 +113,10 @@ export default async function PrintPrescriptionVisitPage({
             />
             <p className="mt-1 text-[9px] font-bold leading-3 text-slate-600">
               Scan after doctor writes
+            </p>
+
+            <p className="mt-1 max-w-[132px] break-all text-[7px] font-mono leading-3 text-slate-500 print:max-w-[128px]">
+              {rxUrl}
             </p>
           </div>
         </section>
