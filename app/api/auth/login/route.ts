@@ -126,12 +126,8 @@ export async function POST(request: Request) {
       await updatePatientPasswordHash(patient.email, await hashPassword(password));
     }
 
-    if (!patient.mobileVerified) {
-      return NextResponse.json(
-        { error: "Please verify your mobile number before login." },
-        { status: 403 }
-      );
-    }
+    // Mobile OTP verification is temporarily not required for login until SMS provider is configured.
+
 
     const token = await createPortalToken("client", patient.email);
     const response = NextResponse.json({ success: true, role: "client" });
