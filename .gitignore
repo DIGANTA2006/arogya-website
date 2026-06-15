@@ -14,3 +14,5 @@ _backup*/
 .next/
 node_modules/
 *.log
+_backup_*/
+*.bak
