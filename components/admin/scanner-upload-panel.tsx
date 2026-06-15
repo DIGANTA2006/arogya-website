@@ -290,12 +290,6 @@ async function detectQrFromPdf(file: File) {
   }
 }
 async function detectTokenFromFile(file: File) {
-  if (!window.BarcodeDetector) {
-    return {
-      token: "",
-      message: "Browser QR detector not available. Use Chrome or paste token manually.",
-    };
-  }
 
   if (file.type.startsWith("image/")) {
     const token = await detectQrFromImage(file);
@@ -304,7 +298,7 @@ async function detectTokenFromFile(file: File) {
       token,
       message: token
         ? "QR detected automatically from image."
-        : "No readable QR found in image. Make sure the printed QR is visible and clear.",
+        : "No readable QR found in image. Paste the printed /rx/... URL manually if needed.",
     };
   }
 
@@ -315,7 +309,7 @@ async function detectTokenFromFile(file: File) {
       token,
       message: token
         ? "QR detected automatically from PDF first page."
-        : "No readable QR found in PDF first page. Make sure QR is visible on page 1.",
+        : "No readable QR found in PDF first page. Paste the printed /rx/... URL manually if needed.",
     };
   }
 
