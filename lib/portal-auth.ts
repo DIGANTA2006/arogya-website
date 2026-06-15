@@ -6,8 +6,18 @@ export function normalizePortalSubject(subject: string) {
   return String(subject || "").trim().toLowerCase();
 }
 
+function getRequiredAuthSecret() {
+  const secret = process.env.AUTH_SECRET;
+
+  if (!secret || secret.length < 32) {
+    throw new Error("AUTH_SECRET env var is required and must be at least 32 characters.");
+  }
+
+  return secret;
+}
+
 async function createSignature(value: string) {
-  const secret = process.env.AUTH_SECRET || "change-this-secret-before-production";
+  const secret = getRequiredAuthSecret();
   const encoder = new TextEncoder();
 
   const key = await crypto.subtle.importKey(

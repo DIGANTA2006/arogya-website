@@ -8,6 +8,7 @@ import {
   updatePatientPasswordHash,
   verifyPassword,
 } from "@/lib/patient-store";
+import { checkRateLimit, getRequestIp, rateLimitPayload } from "@/lib/rate-limit";
 
 type LoginBody = {
   role?: "admin" | "client";
@@ -44,13 +45,11 @@ function setPortalCookies(
 async function verifyAdminPassword(password: string) {
   const adminHash = process.env.ADMIN_PASSWORD_HASH;
 
-  if (adminHash) {
-    return bcrypt.compare(password, adminHash);
+  if (!adminHash) {
+    return false;
   }
 
-  const legacyPassword = process.env.ADMIN_PASSWORD;
-
-  return Boolean(legacyPassword && password === legacyPassword);
+  return bcrypt.compare(password, adminHash);
 }
 
 export async function POST(request: Request) {
@@ -60,6 +59,18 @@ export async function POST(request: Request) {
     const role = body.role;
     const email = String(body.email || "").trim().toLowerCase();
     const password = String(body.password || "");
+
+    const ip = getRequestIp(request);
+
+    const limit = await checkRateLimit({
+      key: `auth:login:${role || "unknown"}:${email || "unknown"}:${ip}`,
+      limit: 5,
+      windowSeconds: 15 * 60,
+    });
+
+    if (!limit.allowed) {
+      return NextResponse.json(rateLimitPayload(limit), { status: 429 });
+    }
 
     if (!role || !email || !password) {
       return NextResponse.json(

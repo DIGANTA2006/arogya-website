@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { createPatient } from "@/lib/patient-store";
 import { cleanPhone } from "@/lib/mobile-otp-store";
+import { checkRateLimit, getRequestIp, rateLimitPayload } from "@/lib/rate-limit";
 
 type RegisterBody = {
   name?: string;
@@ -25,6 +26,18 @@ export async function POST(request: Request) {
     const email = clean(body.email).toLowerCase();
     const password = clean(body.password);
 
+    const ip = getRequestIp(request);
+
+    const limit = await checkRateLimit({
+      key: `auth:register:${email || phone || "unknown"}:${ip}`,
+      limit: 5,
+      windowSeconds: 60 * 60,
+    });
+
+    if (!limit.allowed) {
+      return NextResponse.json(rateLimitPayload(limit), { status: 429 });
+    }
+
     if (!name || !age || !phone || !email || !password) {
       return NextResponse.json(
         { error: "All fields are required." },
@@ -42,9 +55,9 @@ export async function POST(request: Request) {
       );
     }
 
-    if (password.length < 6) {
+    if (password.length < 8) {
       return NextResponse.json(
-        { error: "Password must be at least 6 characters." },
+        { error: "Password must be at least 8 characters." },
         { status: 400 }
       );
     }
@@ -80,4 +93,3 @@ export async function POST(request: Request) {
     );
   }
 }
-

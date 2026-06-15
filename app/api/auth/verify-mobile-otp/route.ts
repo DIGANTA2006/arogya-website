@@ -1,5 +1,6 @@
 ﻿import { NextResponse } from "next/server";
 import { cleanPhone, verifyOtp } from "@/lib/mobile-otp-store";
+import { checkRateLimit, getRequestIp, rateLimitPayload } from "@/lib/rate-limit";
 
 type Body = {
   phone?: string;
@@ -11,6 +12,17 @@ export async function POST(request: Request) {
 
   const phone = cleanPhone(String(body.phone || ""));
   const otp = String(body.otp || "").trim();
+  const ip = getRequestIp(request);
+
+  const limit = await checkRateLimit({
+    key: `auth:verify-otp:${phone || "unknown"}:${ip}`,
+    limit: 5,
+    windowSeconds: 10 * 60,
+  });
+
+  if (!limit.allowed) {
+    return NextResponse.json(rateLimitPayload(limit), { status: 429 });
+  }
 
   if (!phone || !otp) {
     return NextResponse.json(
@@ -43,4 +55,3 @@ export async function POST(request: Request) {
 
   return response;
 }
-

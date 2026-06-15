@@ -1,6 +1,7 @@
 ﻿import { NextResponse } from "next/server";
 import { cleanPhone, createOtpCode, saveOtp } from "@/lib/mobile-otp-store";
 import { sendSms } from "@/lib/sms";
+import { checkRateLimit, getRequestIp, rateLimitPayload } from "@/lib/rate-limit";
 
 type Body = {
   phone?: string;
@@ -9,6 +10,17 @@ type Body = {
 export async function POST(request: Request) {
   const body = (await request.json()) as Body;
   const phone = cleanPhone(String(body.phone || ""));
+  const ip = getRequestIp(request);
+
+  const limit = await checkRateLimit({
+    key: `auth:send-otp:${phone || "unknown"}:${ip}`,
+    limit: 3,
+    windowSeconds: 10 * 60,
+  });
+
+  if (!limit.allowed) {
+    return NextResponse.json(rateLimitPayload(limit), { status: 429 });
+  }
 
   if (!phone || phone.length < 10) {
     return NextResponse.json(
@@ -41,4 +53,3 @@ export async function POST(request: Request) {
     devOtp: sms.sent ? undefined : otp,
   });
 }
-
