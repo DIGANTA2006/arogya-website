@@ -32,34 +32,6 @@ export default async function PrintPrescriptionVisitPage({
 
   return (
     <main className="min-h-screen bg-slate-100 p-4 print:bg-white print:p-0">
-      <style>
-        {`
-          @page {
-            size: A4;
-            margin: 8mm;
-          }
-
-          @media print {
-            html,
-            body {
-              background: white !important;
-            }
-
-            .print-sheet-a4 {
-              width: 100% !important;
-              max-width: none !important;
-              min-height: auto !important;
-              box-shadow: none !important;
-              padding: 0 !important;
-            }
-
-            .doctor-write-area {
-              min-height: 188mm !important;
-            }
-          }
-        `}
-      </style>
-
       <div className="mx-auto mb-4 flex max-w-5xl flex-wrap items-center justify-between gap-3 print:hidden">
         <a
           href="/admin/prescription-visits"
@@ -70,20 +42,20 @@ export default async function PrintPrescriptionVisitPage({
         <PrintButton />
       </div>
 
-      <section className="print-sheet-a4 mx-auto min-h-[297mm] w-full max-w-[210mm] bg-white p-7 shadow-xl print:shadow-none">
-        <header className="border-b-2 border-slate-900 pb-4">
+      <section className="mx-auto min-h-[297mm] w-full max-w-[210mm] bg-white px-7 py-6 shadow-xl print:h-[297mm] print:w-[210mm] print:max-w-none print:overflow-hidden print:px-[9mm] print:py-[8mm] print:shadow-none">
+        <header className="border-b-2 border-slate-900 pb-3">
           <div className="flex items-start justify-between gap-5">
             <div>
-              <h1 className="text-2xl font-black uppercase tracking-tight text-slate-950">
+              <h1 className="text-2xl font-black uppercase tracking-tight text-slate-950 print:text-[22px]">
                 Arogya Speech Therapy
               </h1>
-              <p className="mt-0.5 text-xs font-bold text-slate-700">
+              <p className="mt-0.5 text-sm font-bold text-slate-700 print:text-[12px]">
                 Speech Therapy & Hearing Care
               </p>
-              <p className="mt-1 max-w-xl text-[10px] leading-4 text-slate-600">
+              <p className="mt-1 max-w-xl text-[11px] leading-4 text-slate-600">
                 Opposite Devi ka Bagh, near Dagar Gaire, Sanchi Road, Vidisha 464001
               </p>
-              <p className="text-[10px] font-bold text-slate-800">
+              <p className="text-[11px] font-bold text-slate-800">
                 Timing: Monday – Saturday, 11:00 AM – 8:00 PM
               </p>
             </div>
@@ -92,62 +64,62 @@ export default async function PrintPrescriptionVisitPage({
               <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
                 Prescription Sheet
               </p>
-              <p className="mt-1 text-xl font-black text-slate-950">
+              <p className="mt-1 text-xl font-black text-slate-950 print:text-[19px]">
                 {visit.rxNumber}
               </p>
-              <p className="mt-0.5 text-[10px] text-slate-500">
+              <p className="mt-1 text-[10px] text-slate-500">
                 Date: {today}
               </p>
             </div>
           </div>
         </header>
 
-        <section className="mt-4 grid items-center gap-4 rounded-xl border border-slate-300 px-4 py-3 md:grid-cols-[1fr_115px] print:mt-3 print:px-3 print:py-2">
-          <div className="grid gap-1.5 text-[11px] leading-4">
-            <div className="grid grid-cols-[95px_1fr] gap-3">
+        <section className="mt-4 grid grid-cols-[1fr_130px] gap-4 rounded-2xl border border-slate-300 p-4 print:mt-3 print:grid-cols-[1fr_118px] print:gap-3 print:p-3">
+          <div className="grid content-start gap-2 text-[12px] leading-4 text-slate-900 print:gap-1.5 print:text-[11px]">
+            <div className="grid grid-cols-[105px_1fr] gap-2">
               <strong>Patient Name</strong>
               <span>{visit.patientName}</span>
             </div>
 
-            <div className="grid grid-cols-[95px_1fr] gap-3">
+            <div className="grid grid-cols-[105px_1fr] gap-2">
               <strong>Age</strong>
-              <span>{visit.patientAge || "—"}</span>
+              <span>{visit.patientAge || "________"}</span>
             </div>
 
-            <div className="grid grid-cols-[95px_1fr] gap-3">
+            <div className="grid grid-cols-[105px_1fr] gap-2">
               <strong>Mobile</strong>
-              <span>{visit.patientPhone || "—"}</span>
+              <span>{visit.patientPhone || "________"}</span>
             </div>
 
-            <div className="grid grid-cols-[95px_1fr] gap-3">
+            <div className="grid grid-cols-[105px_1fr] gap-2">
               <strong>Email</strong>
-              <span>{visit.patientEmail}</span>
+              <span>{visit.patientEmail || "________"}</span>
             </div>
 
-            <div className="grid grid-cols-[95px_1fr] gap-3">
+            <div className="grid grid-cols-[105px_1fr] gap-2">
               <strong>Visit Type</strong>
               <span>{visit.appointmentType || "Clinic Visit"}</span>
             </div>
           </div>
 
-          <div className="flex flex-col items-center justify-center text-center">
+          <div className="flex flex-col items-center justify-start border-l border-slate-300 pl-3 text-center print:pl-2">
             <img
               src={`/api/rx/${visit.uploadToken}/qr`}
               alt="Prescription QR code"
-              className="h-24 w-24"
+              className="h-[102px] w-[102px] print:h-[92px] print:w-[92px]"
             />
-            <p className="mt-1 text-[8px] font-bold leading-3 text-slate-600">
+            <p className="mt-1 text-[9px] font-bold leading-3 text-slate-600">
               Scan after doctor writes
             </p>
           </div>
         </section>
 
-        <section className="mt-5 print:mt-4">
-          <h2 className="text-xs font-black uppercase tracking-widest text-slate-950">
+        <section className="mt-4 print:mt-3">
+          <h2 className="text-[13px] font-black uppercase tracking-widest text-slate-950 print:text-[12px]">
             Doctor Notes / Prescription
           </h2>
 
-          <div className="doctor-write-area mt-2 min-h-[710px] bg-white" />
+          <div className="mt-3 h-[690px] print:h-[210mm]" />
         </section>
       </section>
     </main>
