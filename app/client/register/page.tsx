@@ -1,106 +1,119 @@
-"use client";
+﻿"use client";
 
-import { useRouter } from "next/navigation";
-import { useState } from "react";
-import AuthShell from "@/components/auth/auth-shell";
-import SocialLoginButtons from "@/components/auth/social-login-buttons";
+import { ChangeEvent, FormEvent, useState } from "react";
+
+type FormState = {
+  name: string;
+  age: string;
+  phone: string;
+  email: string;
+  password: string;
+  otp: string;
+  consent: boolean;
+};
 
 export default function ClientRegisterPage() {
-  const router = useRouter();
-
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<FormState>({
     name: "",
     age: "",
     phone: "",
     email: "",
     password: "",
     otp: "",
+    consent: false,
   });
 
-  const [mobileVerified, setMobileVerified] = useState(false);
   const [status, setStatus] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpVerified, setOtpVerified] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [otpLoading, setOtpLoading] = useState(false);
 
-  function updateField(event: React.ChangeEvent<HTMLInputElement>) {
-    setForm({
-      ...form,
-      [event.target.name]: event.target.value,
-    });
+  function updateField(event: ChangeEvent<HTMLInputElement>) {
+    const { name, value, type, checked } = event.target;
 
-    if (event.target.name === "phone") {
-      setMobileVerified(false);
-    }
+    setForm((previous) => ({
+      ...previous,
+      [name]: type === "checkbox" ? checked : value,
+    }));
   }
 
   async function sendOtp() {
-    setOtpLoading(true);
     setStatus("");
+
+    if (!form.phone) {
+      setStatus("Please enter mobile number first.");
+      return;
+    }
+
+    setLoading(true);
 
     const response = await fetch("/api/auth/send-mobile-otp", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        phone: form.phone,
-      }),
+      body: JSON.stringify({ phone: form.phone }),
     });
 
     const data = await response.json();
 
+    setLoading(false);
+
     if (!response.ok) {
-      setStatus(data.error || "OTP could not be sent.");
-      setOtpLoading(false);
+      setStatus(data.error || "Could not send OTP.");
       return;
     }
 
-    setStatus(
-      data.devOtp
-        ? `Testing OTP: ${data.devOtp}`
-        : "OTP sent successfully to your mobile number."
-    );
-    setOtpLoading(false);
+    setOtpSent(true);
+    setStatus(data.devOtp ? `OTP generated: ${data.devOtp}` : "OTP sent successfully.");
   }
 
   async function verifyOtp() {
-    setOtpLoading(true);
     setStatus("");
+
+    if (!form.phone || !form.otp) {
+      setStatus("Please enter mobile number and OTP.");
+      return;
+    }
+
+    setLoading(true);
 
     const response = await fetch("/api/auth/verify-mobile-otp", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        phone: form.phone,
-        otp: form.otp,
-      }),
+      body: JSON.stringify({ phone: form.phone, otp: form.otp }),
     });
 
     const data = await response.json();
 
+    setLoading(false);
+
     if (!response.ok) {
       setStatus(data.error || "OTP verification failed.");
-      setOtpLoading(false);
       return;
     }
 
-    setMobileVerified(true);
+    setOtpVerified(true);
     setStatus("Mobile number verified successfully.");
-    setOtpLoading(false);
   }
 
-  async function register(event: React.FormEvent<HTMLFormElement>) {
+  async function submitForm(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setLoading(true);
     setStatus("");
 
-    if (!mobileVerified) {
-      setStatus("Please verify your mobile number before creating account.");
-      setLoading(false);
+    if (!otpVerified) {
+      setStatus("Please verify your mobile number first.");
       return;
     }
+
+    if (!form.consent) {
+      setStatus("Please accept the Privacy Policy and consent notice.");
+      return;
+    }
+
+    setLoading(true);
 
     const response = await fetch("/api/auth/register", {
       method: "POST",
@@ -113,76 +126,174 @@ export default function ClientRegisterPage() {
         phone: form.phone,
         email: form.email,
         password: form.password,
+        consent: form.consent,
       }),
     });
 
     const data = await response.json();
 
+    setLoading(false);
+
     if (!response.ok) {
       setStatus(data.error || "Registration failed.");
-      setLoading(false);
       return;
     }
 
-    setStatus("Account created successfully. Redirecting to login...");
-    setTimeout(() => router.push("/client/login"), 900);
+    setStatus("Account created successfully. Please login now.");
+    window.location.href = "/client/login";
   }
 
   return (
-    <AuthShell
-      title="Create your patient account"
-      subtitle="Verify your mobile number once, then book clinic visits or online consultations securely."
-    >
-      <span className="badge">Patient Registration</span>
-
-      <h2 style={{ fontSize: 38, lineHeight: 1.1, margin: "18px 0 10px", color: "#0f172a" }}>
-        Sign up with mobile verification
-      </h2>
-
-      <p style={{ color: "#64748b", lineHeight: 1.7, marginBottom: 18 }}>
-        Create your patient account manually or continue with Google.
-      </p>
-
-      <SocialLoginButtons />
-
-      <form onSubmit={register} style={{ display: "grid", gap: 13, marginTop: 20 }}>
-        <input className="field" name="name" placeholder="Full name" value={form.name} onChange={updateField} required />
-        <input className="field" name="age" placeholder="Age" value={form.age} onChange={updateField} required />
-
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 140px", gap: 10 }}>
-          <input className="field" name="phone" placeholder="Mobile number" value={form.phone} onChange={updateField} required />
-          <button type="button" className="btn-secondary" onClick={sendOtp} disabled={otpLoading || !form.phone}>
-            {otpLoading ? "Sending..." : "Send OTP"}
-          </button>
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 140px", gap: 10 }}>
-          <input className="field" name="otp" placeholder="Enter OTP" value={form.otp} onChange={updateField} disabled={mobileVerified} />
-          <button type="button" className="btn-secondary" onClick={verifyOtp} disabled={otpLoading || mobileVerified || !form.otp}>
-            {mobileVerified ? "Verified" : "Verify"}
-          </button>
-        </div>
-
-        <input className="field" name="email" type="email" placeholder="Email address" value={form.email} onChange={updateField} required />
-        <input className="field" name="password" type="password" placeholder="Create password" value={form.password} onChange={updateField} required />
-
-        <button className="btn-primary" type="submit" disabled={loading || !mobileVerified}>
-          {loading ? "Creating..." : "Create Account"}
-        </button>
-
-        {status && (
-          <p style={{ margin: 0, color: status.includes("successfully") || status.includes("verified") ? "#15803d" : "#b91c1c", fontWeight: 800 }}>
-            {status}
-          </p>
-        )}
-      </form>
-
-      <p style={{ color: "#64748b", marginTop: 18 }}>
-        Already have an account?{" "}
-        <a href="/client/login" style={{ color: "#0284c7", fontWeight: 950, textDecoration: "none" }}>
-          Login
+    <main className="min-h-screen bg-secondary/40 px-4 py-10">
+      <section className="mx-auto max-w-xl rounded-[2rem] border border-border bg-white p-6 shadow-sm md:p-8">
+        <a href="/portal" className="text-sm font-bold text-primary">
+          ← Back to portal
         </a>
-      </p>
-    </AuthShell>
+
+        <h1 className="mt-5 text-3xl font-black text-foreground">
+          Create Patient Account
+        </h1>
+
+        <p className="mt-2 text-sm text-muted-foreground">
+          Verify your mobile number and create your secure patient portal account.
+        </p>
+
+        <form onSubmit={submitForm} className="mt-6 grid gap-4">
+          <label className="grid gap-2 text-sm font-bold text-foreground">
+            Patient Name
+            <input
+              name="name"
+              value={form.name}
+              onChange={updateField}
+              className="rounded-2xl border border-border px-4 py-3 font-normal outline-none focus:border-primary"
+              required
+            />
+          </label>
+
+          <label className="grid gap-2 text-sm font-bold text-foreground">
+            Age
+            <input
+              name="age"
+              value={form.age}
+              onChange={updateField}
+              className="rounded-2xl border border-border px-4 py-3 font-normal outline-none focus:border-primary"
+              required
+            />
+          </label>
+
+          <label className="grid gap-2 text-sm font-bold text-foreground">
+            Mobile Number
+            <div className="flex gap-2">
+              <input
+                name="phone"
+                value={form.phone}
+                onChange={updateField}
+                className="min-w-0 flex-1 rounded-2xl border border-border px-4 py-3 font-normal outline-none focus:border-primary"
+                required
+              />
+
+              <button
+                type="button"
+                onClick={sendOtp}
+                disabled={loading || otpVerified}
+                className="rounded-2xl bg-primary px-4 py-3 text-sm font-extrabold text-primary-foreground disabled:opacity-60"
+              >
+                {otpVerified ? "Verified" : otpSent ? "Resend" : "Send OTP"}
+              </button>
+            </div>
+          </label>
+
+          {otpSent && !otpVerified && (
+            <label className="grid gap-2 text-sm font-bold text-foreground">
+              Enter OTP
+              <div className="flex gap-2">
+                <input
+                  name="otp"
+                  value={form.otp}
+                  onChange={updateField}
+                  className="min-w-0 flex-1 rounded-2xl border border-border px-4 py-3 font-normal outline-none focus:border-primary"
+                />
+
+                <button
+                  type="button"
+                  onClick={verifyOtp}
+                  disabled={loading}
+                  className="rounded-2xl border border-border px-4 py-3 text-sm font-extrabold text-foreground disabled:opacity-60"
+                >
+                  Verify
+                </button>
+              </div>
+            </label>
+          )}
+
+          <label className="grid gap-2 text-sm font-bold text-foreground">
+            Email Address
+            <input
+              name="email"
+              type="email"
+              value={form.email}
+              onChange={updateField}
+              className="rounded-2xl border border-border px-4 py-3 font-normal outline-none focus:border-primary"
+              required
+            />
+          </label>
+
+          <label className="grid gap-2 text-sm font-bold text-foreground">
+            Password
+            <input
+              name="password"
+              type="password"
+              value={form.password}
+              onChange={updateField}
+              className="rounded-2xl border border-border px-4 py-3 font-normal outline-none focus:border-primary"
+              minLength={8}
+              required
+            />
+            <span className="text-xs font-normal text-muted-foreground">
+              Minimum 8 characters.
+            </span>
+          </label>
+
+          <label className="flex items-start gap-3 rounded-2xl border border-border bg-secondary/40 p-4 text-sm text-muted-foreground">
+            <input
+              name="consent"
+              type="checkbox"
+              checked={form.consent}
+              onChange={updateField}
+              className="mt-1 h-4 w-4"
+            />
+
+            <span>
+              I consent to Arogya Speech Therapy & Hearing Care collecting and using my personal and appointment information for patient account creation, appointment management, OTP verification, prescription/report access, and clinic communication. I have read the{" "}
+              <a href="/privacy-policy" target="_blank" className="font-bold text-primary">
+                Privacy Policy
+              </a>
+              .
+            </span>
+          </label>
+
+          <button
+            type="submit"
+            disabled={loading || !otpVerified || !form.consent}
+            className="rounded-full bg-primary px-6 py-3 text-sm font-extrabold text-primary-foreground disabled:opacity-60"
+          >
+            {loading ? "Please wait..." : "Create Account"}
+          </button>
+
+          {status && (
+            <p className="rounded-2xl bg-secondary px-4 py-3 text-sm font-bold text-foreground">
+              {status}
+            </p>
+          )}
+
+          <p className="text-center text-sm text-muted-foreground">
+            Already have an account?{" "}
+            <a href="/client/login" className="font-extrabold text-primary">
+              Login
+            </a>
+          </p>
+        </form>
+      </section>
+    </main>
   );
 }

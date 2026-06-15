@@ -10,6 +10,7 @@ type RegisterBody = {
   phone?: string;
   email?: string;
   password?: string;
+  consent?: boolean;
 };
 
 function clean(value?: string) {
@@ -25,6 +26,7 @@ export async function POST(request: Request) {
     const phone = cleanPhone(clean(body.phone));
     const email = clean(body.email).toLowerCase();
     const password = clean(body.password);
+    const consent = Boolean(body.consent);
 
     const ip = getRequestIp(request);
 
@@ -41,6 +43,13 @@ export async function POST(request: Request) {
     if (!name || !age || !phone || !email || !password) {
       return NextResponse.json(
         { error: "All fields are required." },
+        { status: 400 }
+      );
+    }
+
+    if (!consent) {
+      return NextResponse.json(
+        { error: "Please accept the Privacy Policy and consent notice before creating an account." },
         { status: 400 }
       );
     }
