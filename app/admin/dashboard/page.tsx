@@ -8,7 +8,7 @@
   {
     title: "Smart Prescription Sheets",
     text: "Reception creates QR prescription sheets before the doctor writes by hand.",
-    link: "/admin/prescription-visits",
+    link: "/admin/patients",
     button: "Create Sheet",
   },
   {
