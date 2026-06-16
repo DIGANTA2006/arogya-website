@@ -10,9 +10,23 @@ import {
 
 export const runtime = "nodejs";
 
-function isTableMissingError(error: unknown) {
+function getPaymentSetupError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error || "");
-  return message.toLowerCase().includes("appointment_payments");
+  const lowerMessage = message.toLowerCase();
+
+  if (
+    lowerMessage.includes("does not exist") ||
+    lowerMessage.includes("schema cache") ||
+    lowerMessage.includes("pgrst")
+  ) {
+    return "Payment database table is missing. Run Phase 8D Supabase SQL first.";
+  }
+
+  if (lowerMessage.includes("permission denied")) {
+    return "Payment database permissions are missing. Grant service_role access to appointment_payments.";
+  }
+
+  return "";
 }
 
 export async function GET() {
@@ -33,11 +47,10 @@ export async function GET() {
 
     return NextResponse.json({ payments: formatted });
   } catch (error) {
-    if (isTableMissingError(error)) {
-      return NextResponse.json(
-        { error: "Payment system table is missing. Run Phase 8D Supabase SQL first." },
-        { status: 500 }
-      );
+    const setupError = getPaymentSetupError(error);
+
+    if (setupError) {
+      return NextResponse.json({ error: setupError }, { status: 500 });
     }
 
     return NextResponse.json(
@@ -89,11 +102,10 @@ export async function PATCH(request: Request) {
       ),
     });
   } catch (error) {
-    if (isTableMissingError(error)) {
-      return NextResponse.json(
-        { error: "Payment system table is missing. Run Phase 8D Supabase SQL first." },
-        { status: 500 }
-      );
+    const setupError = getPaymentSetupError(error);
+
+    if (setupError) {
+      return NextResponse.json({ error: setupError }, { status: 500 });
     }
 
     return NextResponse.json(
@@ -102,3 +114,4 @@ export async function PATCH(request: Request) {
     );
   }
 }
+
