@@ -1,4 +1,4 @@
-import { createHash, randomInt } from "crypto";
+﻿import { createHash, randomInt } from "crypto";
 import { mkdir, readFile, writeFile } from "fs/promises";
 import { join } from "path";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
@@ -25,9 +25,19 @@ function normalizePhone(phone: string) {
   return digits;
 }
 
+function getAuthSecret() {
+  const secret = process.env.AUTH_SECRET;
+
+  if (!secret) {
+    throw new Error("AUTH_SECRET is required for OTP hashing.");
+  }
+
+  return secret;
+}
+
 function hashOtp(phone: string, otp: string) {
   return createHash("sha256")
-    .update(`${phone}:${otp}:${process.env.AUTH_SECRET || "otp-secret"}`)
+    .update(`${phone}:${otp}:${getAuthSecret()}`)
     .digest("hex");
 }
 
@@ -151,3 +161,4 @@ export async function markPatientMobileVerified(email: string, phoneInput: strin
       .eq("email", email.toLowerCase());
   }
 }
+

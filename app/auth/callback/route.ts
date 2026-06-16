@@ -11,7 +11,12 @@ type CookieToSet = {
 export const dynamic = "force-dynamic";
 
 async function createSignature(value: string) {
-  const secret = process.env.AUTH_SECRET || "change-this-secret-before-production";
+  const secret = process.env.AUTH_SECRET;
+
+  if (!secret) {
+    throw new Error("AUTH_SECRET is required.");
+  }
+
   const encoder = new TextEncoder();
 
   const key = await crypto.subtle.importKey(

@@ -1,5 +1,10 @@
 ﻿export async function createSignature(value: string) {
-  const secret = process.env.AUTH_SECRET || "change-this-secret";
+  const secret = process.env.AUTH_SECRET;
+
+  if (!secret) {
+    throw new Error("AUTH_SECRET is required.");
+  }
+
   const encoder = new TextEncoder();
 
   const key = await crypto.subtle.importKey(
@@ -19,5 +24,6 @@
     .map((byte) => byte.toString(16).padStart(2, "0"))
     .join("");
 }
+
 
 
