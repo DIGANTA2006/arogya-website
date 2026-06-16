@@ -77,6 +77,15 @@ function isOnlineAppointmentType(value?: string) {
   );
 }
 
+function buildOnlineMeetingLink(appointmentId?: string) {
+  const safeId =
+    String(appointmentId || "")
+      .replace(/[^a-zA-Z0-9]/g, "")
+      .slice(0, 48) || "session";
+
+  return `https://meet.jit.si/ArogyaSpeechTherapy-${safeId}`;
+}
+
 export default function ClientDashboardPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
@@ -388,6 +397,10 @@ export default function ClientDashboardPage() {
                 const appointmentTime =
                   appointment.time || appointment.appointmentTime || appointment.appointment_time || "-";
                 const appointmentId = String(appointment.id || "");
+                const meetingLink =
+                  isOnlineAppointment && appointmentId
+                    ? buildOnlineMeetingLink(appointmentId)
+                    : "";
                 const payment = appointmentId ? paymentByAppointment.get(appointmentId) : undefined;
                 const paymentStatus = isOnlineAppointment
                   ? payment?.status
@@ -413,6 +426,21 @@ export default function ClientDashboardPage() {
                         <a href={`/client/payment/${appointmentId}`} className="dash-btn dash-btn-light">
                           {payment?.status === "paid" ? "View Payment" : "Pay / Submit UPI"}
                         </a>
+
+                        {payment?.status === "paid" && meetingLink ? (
+                          <a
+                            href={meetingLink}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="dash-btn dash-btn-dark"
+                          >
+                            Join Online Meeting
+                          </a>
+                        ) : (
+                          <span className="clinic-payment-note">
+                            Meeting link available after payment verification
+                          </span>
+                        )}
                       </div>
                     ) : (
                       <div className="appointment-payment-actions">
@@ -930,4 +958,5 @@ function EmptyState({ text }: { text: string }) {
     </div>
   );
 }
+
 

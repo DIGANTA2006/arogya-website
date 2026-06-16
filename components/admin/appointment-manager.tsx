@@ -52,6 +52,15 @@ function isOnlineAppointmentType(value: string) {
   )
 }
 
+function buildOnlineMeetingLink(appointmentId?: string) {
+  const safeId =
+    String(appointmentId || "")
+      .replace(/[^a-zA-Z0-9]/g, "")
+      .slice(0, 48) || "session"
+
+  return `https://meet.jit.si/ArogyaSpeechTherapy-${safeId}`
+}
+
 function paymentStatusClass(status?: PaymentStatus) {
   if (status === 'paid') return 'bg-emerald-100 text-emerald-700'
   if (status === 'rejected') return 'bg-rose-100 text-rose-700'
@@ -233,6 +242,7 @@ export default function AppointmentManager() {
               <tbody>
                 {filteredAppointments.map((appointment) => {
                   const isOnline = isOnlineAppointmentType(appointment.appointmentType)
+                  const meetingLink = isOnline ? buildOnlineMeetingLink(appointment.id) : ""
                   const payment = paymentByAppointment.get(appointment.id)
 
                   return (
@@ -255,6 +265,14 @@ export default function AppointmentManager() {
                             </span>
                             <a href="/admin/payments" className="mt-2 block text-xs font-bold text-primary">
                               Verify Payment
+                            </a>
+                            <a
+                              href={meetingLink}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="mt-1 block text-xs font-bold text-slate-900"
+                            >
+                              Open Meeting
                             </a>
                           </div>
                         ) : (
@@ -296,3 +314,4 @@ export default function AppointmentManager() {
     </div>
   )
 }
+
