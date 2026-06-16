@@ -1,8 +1,9 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useMemo, useState } from 'react'
 
 type AppointmentStatus = 'New' | 'Confirmed' | 'Completed' | 'Cancelled'
+type PaymentStatus = 'pending' | 'submitted' | 'paid' | 'rejected'
 
 type Appointment = {
   id: string
@@ -18,6 +19,20 @@ type Appointment = {
   createdAt: string
 }
 
+type PaymentSummary = {
+  id: string
+  appointmentId?: string
+  appointment_id?: string
+  amount?: number | null
+  status?: PaymentStatus
+  transactionRef?: string
+  transaction_ref?: string
+  submittedAt?: string
+  submitted_at?: string
+  verifiedAt?: string
+  verified_at?: string
+}
+
 const statusOptions: AppointmentStatus[] = ['New', 'Confirmed', 'Completed', 'Cancelled']
 
 function statusClass(status: AppointmentStatus) {
@@ -27,8 +42,33 @@ function statusClass(status: AppointmentStatus) {
   return 'bg-orange-100 text-orange-700'
 }
 
+function isOnlineAppointmentType(value: string) {
+  const text = String(value || '').trim().toLowerCase()
+
+  return (
+    text.includes('online') ||
+    text.includes('video') ||
+    text.includes('meet')
+  )
+}
+
+function paymentStatusClass(status?: PaymentStatus) {
+  if (status === 'paid') return 'bg-emerald-100 text-emerald-700'
+  if (status === 'rejected') return 'bg-rose-100 text-rose-700'
+  if (status === 'submitted') return 'bg-yellow-100 text-yellow-700'
+  return 'bg-slate-100 text-slate-700'
+}
+
+function paymentStatusLabel(status?: PaymentStatus) {
+  if (status === 'paid') return 'Paid'
+  if (status === 'rejected') return 'Rejected'
+  if (status === 'submitted') return 'Submitted'
+  return 'Not Submitted'
+}
+
 export default function AppointmentManager() {
   const [appointments, setAppointments] = useState<Appointment[]>([])
+  const [payments, setPayments] = useState<PaymentSummary[]>([])
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
   const [loading, setLoading] = useState(true)
@@ -48,9 +88,32 @@ export default function AppointmentManager() {
     }
   }
 
+  async function loadPayments() {
+    try {
+      const response = await fetch('/api/admin/payments', { cache: 'no-store' })
+      if (!response.ok) return
+      const data = (await response.json()) as { payments?: PaymentSummary[] }
+      setPayments(data.payments || [])
+    } catch {
+      // Payment status is extra context only. Appointment CRM should still work.
+    }
+  }
+
   useEffect(() => {
     loadAppointments()
+    loadPayments()
   }, [])
+
+  const paymentByAppointment = useMemo(() => {
+    const map = new Map<string, PaymentSummary>()
+
+    for (const payment of payments) {
+      const appointmentId = payment.appointmentId || payment.appointment_id
+      if (appointmentId) map.set(appointmentId, payment)
+    }
+
+    return map
+  }, [payments])
 
   const filteredAppointments = useMemo(() => {
     const query = search.toLowerCase()
@@ -67,12 +130,24 @@ export default function AppointmentManager() {
     })
   }, [appointments, search, statusFilter])
 
-  async function updateStatus(id: string, status: AppointmentStatus) {
+  async function updateStatus(appointment: Appointment, status: AppointmentStatus) {
     setStatusMessage('')
+
+    const isOnline = isOnlineAppointmentType(appointment.appointmentType)
+    const payment = paymentByAppointment.get(appointment.id)
+
+    if (isOnline && status === 'Completed' && payment?.status !== 'paid') {
+      const confirmed = window.confirm(
+        'This online consultation payment is not marked Paid yet. Continue marking appointment as Completed?'
+      )
+
+      if (!confirmed) return
+    }
+
     const response = await fetch('/api/admin/appointments', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, status }),
+      body: JSON.stringify({ id: appointment.id, status }),
     })
 
     if (!response.ok) {
@@ -80,13 +155,16 @@ export default function AppointmentManager() {
       return
     }
 
-    setAppointments((previous) => previous.map((item) => (item.id === id ? { ...item, status } : item)))
+    setAppointments((previous) =>
+      previous.map((item) => (item.id === appointment.id ? { ...item, status } : item))
+    )
     setStatusMessage('Appointment status updated.')
   }
 
   const totalNew = appointments.filter((item) => item.status === 'New').length
   const totalConfirmed = appointments.filter((item) => item.status === 'Confirmed').length
   const totalCompleted = appointments.filter((item) => item.status === 'Completed').length
+  const totalOnline = appointments.filter((item) => isOnlineAppointmentType(item.appointmentType)).length
 
   return (
     <div>
@@ -94,8 +172,8 @@ export default function AppointmentManager() {
         {[
           ['Total Leads', appointments.length],
           ['New', totalNew],
-          ['Confirmed', totalConfirmed],
           ['Completed', totalCompleted],
+          ['Online', totalOnline],
         ].map(([label, value]) => (
           <div key={label} className="rounded-3xl border border-border bg-white p-5 shadow-sm">
             <p className="text-sm text-muted-foreground">{label}</p>
@@ -139,62 +217,82 @@ export default function AppointmentManager() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1120px] border-collapse text-left text-sm">
+            <table className="w-full min-w-[1240px] border-collapse text-left text-sm">
               <thead className="bg-secondary/60 text-xs uppercase tracking-wider text-muted-foreground">
                 <tr>
                   <th className="p-4">Patient</th>
                   <th className="p-4">Contact</th>
                   <th className="p-4">Service</th>
                   <th className="p-4">Type</th>
+                  <th className="p-4">Payment</th>
                   <th className="p-4">Date & Time</th>
                   <th className="p-4">Status</th>
                   <th className="p-4">Message</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredAppointments.map((appointment) => (
-                  <tr key={appointment.id} className="border-t border-border align-top">
-                    <td className="p-4">
-                      <strong className="text-foreground">{appointment.name}</strong>
-                      <p className="mt-1 text-xs text-muted-foreground">{new Date(appointment.createdAt).toLocaleString()}</p>
-                    </td>
-                    <td className="p-4">
-                      <a href={`tel:${appointment.phone}`} className="font-bold text-primary">{appointment.phone}</a>
-                      <p className="mt-1 text-xs text-muted-foreground">{appointment.email || 'No email'}</p>
-                    </td>
-                    <td className="p-4">{appointment.service}</td>
-                    <td className="p-4">{appointment.appointmentType}</td>
-                    <td className="p-4">
-                      <strong>{appointment.date}</strong>
-                      <p className="mt-1 text-xs text-muted-foreground">{appointment.time}</p>
-                    </td>
-                    <td className="p-4">
-                      <span className={`mb-2 inline-flex rounded-full px-3 py-1 text-xs font-bold ${statusClass(appointment.status)}`}>
-                        {appointment.status}
-                      </span>
-                      <select
-                        className="block w-full rounded-xl border border-input bg-background px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-ring"
-                        value={appointment.status}
-                        onChange={(event) => updateStatus(appointment.id, event.target.value as AppointmentStatus)}
-                      >
-                        {statusOptions.map((status) => <option key={status}>{status}</option>)}
-                      </select>
-                    </td>
-                    <td className="max-w-xs p-4 text-muted-foreground">{appointment.message || 'No message'}</td>
-                  </tr>
-                ))}
+                {filteredAppointments.map((appointment) => {
+                  const isOnline = isOnlineAppointmentType(appointment.appointmentType)
+                  const payment = paymentByAppointment.get(appointment.id)
+
+                  return (
+                    <tr key={appointment.id} className="border-t border-border align-top">
+                      <td className="p-4">
+                        <strong className="text-foreground">{appointment.name}</strong>
+                        <p className="mt-1 text-xs text-muted-foreground">{new Date(appointment.createdAt).toLocaleString()}</p>
+                      </td>
+                      <td className="p-4">
+                        <a href={`tel:${appointment.phone}`} className="font-bold text-primary">{appointment.phone}</a>
+                        <p className="mt-1 text-xs text-muted-foreground">{appointment.email || 'No email'}</p>
+                      </td>
+                      <td className="p-4">{appointment.service}</td>
+                      <td className="p-4">{appointment.appointmentType}</td>
+                      <td className="p-4">
+                        {isOnline ? (
+                          <div>
+                            <span className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${paymentStatusClass(payment?.status)}`}>
+                              {paymentStatusLabel(payment?.status)}
+                            </span>
+                            <a href="/admin/payments" className="mt-2 block text-xs font-bold text-primary">
+                              Verify Payment
+                            </a>
+                          </div>
+                        ) : (
+                          <span className="inline-flex rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
+                            Pay at Clinic
+                          </span>
+                        )}
+                      </td>
+                      <td className="p-4">
+                        <strong>{appointment.date}</strong>
+                        <p className="mt-1 text-xs text-muted-foreground">{appointment.time}</p>
+                      </td>
+                      <td className="p-4">
+                        <span className={`mb-2 inline-flex rounded-full px-3 py-1 text-xs font-bold ${statusClass(appointment.status)}`}>
+                          {appointment.status}
+                        </span>
+                        <select
+                          className="block w-full rounded-xl border border-input bg-background px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-ring"
+                          value={appointment.status}
+                          onChange={(event) => updateStatus(appointment, event.target.value as AppointmentStatus)}
+                        >
+                          {statusOptions.map((status) => <option key={status}>{status}</option>)}
+                        </select>
+                      </td>
+                      <td className="max-w-xs p-4 text-muted-foreground">{appointment.message || 'No message'}</td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
         )}
       </div>
 
-      <div className="mt-6 rounded-3xl border border-orange-200 bg-orange-50 p-5 text-sm leading-relaxed text-orange-800">
-        <strong></strong> This CRM stores data in Supabase when environment keys are added. Without Supabase, it uses local JSON only for preview/Preview.
+      <div className="mt-6 rounded-3xl border border-sky-200 bg-sky-50 p-5 text-sm leading-relaxed text-sky-800">
+        <strong>Online consultation rule:</strong> UPI payment is used only for online video consultations.
+        Physical clinic visits and walk-in patients should pay normally at the clinic reception.
       </div>
     </div>
   )
 }
-
-
-
