@@ -121,6 +121,38 @@ export default function AdminPatientsPage() {
           </a>
         </div>
 
+        <div className="mt-8 rounded-[2rem] border border-primary/20 bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-black text-foreground">
+            Offline patient entry starts from Smart Prescription Sheets
+          </h2>
+
+          <p className="mt-2 text-sm leading-7 text-muted-foreground">
+            This page is for searching and checking patient history. To enter a new offline patient, create a QR prescription sheet first. That will create or link the patient account automatically.
+          </p>
+
+          <div className="mt-4 flex flex-wrap gap-3">
+            <a
+              href="/admin/prescription-visits"
+              className="rounded-full bg-primary px-5 py-3 text-sm font-extrabold text-primary-foreground"
+            >
+              Create QR Sheet / Offline Patient
+            </a>
+
+            <a
+              href="/admin/scanner"
+              className="rounded-full border border-border bg-white px-5 py-3 text-sm font-extrabold text-foreground"
+            >
+              Scanner Upload
+            </a>
+
+            <a
+              href="/admin/prescriptions"
+              className="rounded-full border border-border bg-white px-5 py-3 text-sm font-extrabold text-foreground"
+            >
+              Prescription Archive
+            </a>
+          </div>
+        </div>
         <form
           onSubmit={searchPatient}
           className="mt-8 flex flex-col gap-3 rounded-[2rem] border border-border bg-white p-5 shadow-sm md:flex-row"
@@ -222,8 +254,8 @@ export default function AdminPatientsPage() {
 
                     {data.appointments.map((appointment) => (
                       <tr key={appointment.id} className="border-b border-border">
-                        <td className="py-3 font-bold">{appointment.date || "Not set"}</td>
-                        <td className="py-3">{appointment.time || "Not set"}</td>
+                        <td className="py-3 font-bold">{appointment.date || (appointment as any).appointment_date || "Not set"}</td>
+                        <td className="py-3">{appointment.time || (appointment as any).appointment_time || "Not set"}</td>
                         <td className="py-3">{appointment.service || "Not set"}</td>
                         <td className="py-3">
                           {appointment.appointment_type || appointment.appointmentType || "Clinic Visit"}
