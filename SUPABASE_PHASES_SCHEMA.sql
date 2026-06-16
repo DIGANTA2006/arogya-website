@@ -222,3 +222,75 @@ set
 
 -- Access is handled through secure Next.js API routes using portal cookies.
 -- Do not add broad public select/insert/update policies for this table.
+
+-- =========================================================
+-- FINAL PRODUCTION RLS HARDENING
+-- Arogya Speech Therapy & Hearing Care
+-- =========================================================
+-- Purpose:
+-- 1. Enable RLS on sensitive public medical tables.
+-- 2. Remove direct anon/authenticated table access.
+-- 3. Keep server-side service_role access working.
+--
+-- Important:
+-- Do NOT use FORCE ROW LEVEL SECURITY here because the
+-- Next.js server APIs use SUPABASE_SERVICE_ROLE_KEY.
+-- =========================================================
+
+do $$
+declare
+  table_names text[] := array[
+    'patients',
+    'appointments',
+    'prescriptions',
+    'prescription_visits',
+    'mobile_otps',
+    'reviews',
+    'appointment_payments',
+    'password_reset_requests',
+    'email_verification_tokens'
+  ];
+  table_name text;
+begin
+  foreach table_name in array table_names
+  loop
+    if to_regclass('public.' || table_name) is not null then
+      execute format('alter table public.%I enable row level security;', table_name);
+
+      execute format('revoke all on table public.%I from anon;', table_name);
+      execute format('revoke all on table public.%I from authenticated;', table_name);
+
+      execute format('grant select, insert, update, delete on table public.%I to service_role;', table_name);
+    end if;
+  end loop;
+end $$;
+
+update storage.buckets
+set public = false
+where id = 'payment-proofs';
+
+grant select, insert, update, delete
+on table storage.objects
+to service_role;
+
+grant select
+on table storage.buckets
+to service_role;
+
+-- Verification query:
+-- select schemaname, tablename, rowsecurity as rls_enabled
+-- from pg_tables
+-- where schemaname = 'public'
+--   and tablename in (
+--     'patients',
+--     'appointments',
+--     'prescriptions',
+--     'prescription_visits',
+--     'mobile_otps',
+--     'reviews',
+--     'appointment_payments',
+--     'password_reset_requests',
+--     'email_verification_tokens'
+--   )
+-- order by tablename;
+
