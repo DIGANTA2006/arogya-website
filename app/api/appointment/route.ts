@@ -5,6 +5,7 @@ import {
   validateAppointmentSlot,
 } from "@/lib/appointment-slots";
 import { addAppointment } from "@/lib/appointment-store";
+import { createPrescriptionVisit } from "@/lib/prescription-visit-store";
 import { escapeHtml } from "@/lib/html";
 import {
   buildOnlineConsultationLink,
@@ -113,6 +114,20 @@ export async function POST(request: Request) {
       time: slotValidation.time,
       message,
     });
+    let prescriptionVisit: Awaited<ReturnType<typeof createPrescriptionVisit>> | null = null;
+
+    try {
+      prescriptionVisit = await createPrescriptionVisit({
+        patientEmail: appointment.email,
+        patientName: appointment.name,
+        patientPhone: appointment.phone,
+        patientAge: appointment.age,
+        appointmentId: appointment.id,
+        appointmentType: appointment.appointmentType,
+      });
+    } catch {
+      prescriptionVisit = null;
+    }
 
     const online = isOnlineAppointment(appointmentType);
     const meetingLink = online ? buildOnlineConsultationLink(appointment.id) : "";
@@ -188,6 +203,8 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       appointmentId: appointment.id,
+      prescriptionVisitId: prescriptionVisit ? prescriptionVisit.id : null,
+      rxNumber: prescriptionVisit ? prescriptionVisit.rxNumber : null,
       meetingLink: meetingLink || null,
       message: "Appointment booked successfully.",
     });

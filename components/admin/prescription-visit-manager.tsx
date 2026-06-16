@@ -51,6 +51,7 @@ export default function PrescriptionVisitManager() {
   const [lookupLoading, setLookupLoading] = useState(false);
   const [loadingList, setLoadingList] = useState(true);
   const [form, setForm] = useState(emptyForm);
+  const [visitSearch, setVisitSearch] = useState("");
 
   async function loadVisits() {
     setLoadingList(true);
@@ -199,6 +200,25 @@ export default function PrescriptionVisitManager() {
     setVisits((previous) => previous.filter((visit) => visit.id !== id));
     setStatus(`${rxNumber} removed from active prescription sheets.`);
   }
+  const filteredVisits = visits.filter((visit) => {
+    const search = visitSearch.trim().toLowerCase();
+
+    if (!search) {
+      return true;
+    }
+
+    return [
+      visit.rxNumber,
+      visit.patientName,
+      visit.patientEmail,
+      visit.patientPhone,
+      visit.appointmentType,
+      visit.status,
+    ]
+      .join(" ")
+      .toLowerCase()
+      .includes(search);
+  });
   return (
     <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
       <form
@@ -218,6 +238,15 @@ export default function PrescriptionVisitManager() {
         </p>
 
         <div className="mt-6 grid gap-4">
+          <label className="grid gap-2 text-sm font-bold text-foreground">
+            Search generated prescription sheets
+            <input
+              className="field"
+              value={visitSearch}
+              onChange={(event) => setVisitSearch(event.target.value)}
+              placeholder="Search RX, patient name, email, mobile, online/offline..."
+            />
+          </label>
           <label className="grid gap-2 text-sm font-bold text-foreground">
             Search Existing Patient / Appointment
             <input
@@ -384,17 +413,26 @@ export default function PrescriptionVisitManager() {
         </div>
 
         <div className="mt-6 grid gap-4">
+          <label className="grid gap-2 text-sm font-bold text-foreground">
+            Search generated prescription sheets
+            <input
+              className="field"
+              value={visitSearch}
+              onChange={(event) => setVisitSearch(event.target.value)}
+              placeholder="Search RX, patient name, email, mobile, online/offline..."
+            />
+          </label>
           {loadingList && (
             <p className="text-sm text-muted-foreground">Loading prescription visits...</p>
           )}
 
-          {!loadingList && visits.length === 0 && (
+          {!loadingList && filteredVisits.length === 0 && (
             <p className="text-sm text-muted-foreground">
               No prescription visits created yet.
             </p>
           )}
 
-          {visits.map((visit) => (
+          {filteredVisits.map((visit) => (
             <div
               key={visit.id}
               className="rounded-2xl border border-border p-4"
@@ -442,6 +480,14 @@ export default function PrescriptionVisitManager() {
                   className="rounded-full bg-primary px-4 py-2 text-xs font-extrabold text-primary-foreground"
                 >
                   Print Sheet
+                </a>
+
+                <a
+                  href={`/admin/prescription-visits/${visit.id}/write`}
+                  target="_blank"
+                  className="rounded-full bg-slate-900 px-4 py-2 text-xs font-extrabold text-white"
+                >
+                  Write Digitally
                 </a>
 
                 <a
