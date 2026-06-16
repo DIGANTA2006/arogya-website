@@ -24,6 +24,12 @@
     button: "Open CRM",
   },
   {
+    title: "UPI Payment Verification",
+    text: "Review patient UPI references and screenshots, then mark payment as paid or rejected.",
+    link: "/admin/payments",
+    button: "Verify Payments",
+  },
+  {
     title: "Prescription Archive",
     text: "View uploaded prescriptions and secure patient download records.",
     link: "/admin/prescriptions",
