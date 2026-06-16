@@ -1,5 +1,5 @@
 ﻿import { NextResponse } from "next/server";
-import { cleanPhone } from "@/lib/mobile-otp-store";
+import { cleanPhone, createOtpCode, saveOtp } from "@/lib/mobile-otp-store";
 import { checkRateLimit, getRequestIp, rateLimitPayload } from "@/lib/rate-limit";
 
 type Body = {
@@ -7,37 +7,65 @@ type Body = {
   mobile?: string;
 };
 
-function toE164Indian(phoneInput: string) {
-  const phone = cleanPhone(phoneInput);
+async function sendFast2SmsOtp(input: {
+  phone: string;
+  otp: string;
+}) {
+  const apiKey = process.env.FAST2SMS_API_KEY;
 
-  if (!phone || phone.length < 10) {
-    throw new Error("Valid mobile number is required.");
+  if (!apiKey) {
+    return {
+      sent: false,
+      error: "FAST2SMS_API_KEY is not configured.",
+      detail: null,
+    };
   }
 
-  return phone.startsWith("91") ? `+${phone}` : `+91${phone}`;
-}
+  const response = await fetch("https://www.fast2sms.com/dev/bulkV2", {
+    method: "POST",
+    headers: {
+      authorization: apiKey,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({
+      variables_values: input.otp,
+      route: "otp",
+      numbers: input.phone,
+    }),
+  });
 
-function getTwilioAuthHeader() {
-  const accountSid = process.env.TWILIO_ACCOUNT_SID;
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  const data = await response.json().catch(() => null);
 
-  if (!accountSid || !authToken) {
-    throw new Error("Twilio Account SID/Auth Token are not configured.");
+  if (!response.ok || data?.return === false) {
+    return {
+      sent: false,
+      error: data?.message || "Fast2SMS OTP could not be sent.",
+      detail: data,
+    };
   }
 
-  return `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString("base64")}`;
+  return {
+    sent: true,
+    error: "",
+    detail: data,
+  };
 }
 
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as Body;
-    const rawPhone = String(body.phone || body.mobile || "").trim();
-    const phone = cleanPhone(rawPhone);
-    const to = toE164Indian(rawPhone);
+    const phone = cleanPhone(String(body.phone || body.mobile || ""));
     const ip = getRequestIp(request);
 
+    if (!phone || phone.length < 10) {
+      return NextResponse.json(
+        { error: "Valid mobile number is required." },
+        { status: 400 }
+      );
+    }
+
     const limit = await checkRateLimit({
-      key: `auth:send-mobile-otp:${phone || "unknown"}:${ip}`,
+      key: `auth:send-mobile-otp:${phone}:${ip}`,
       limit: 5,
       windowSeconds: 15 * 60,
     });
@@ -46,46 +74,31 @@ export async function POST(request: Request) {
       return NextResponse.json(rateLimitPayload(limit), { status: 429 });
     }
 
-    const serviceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
+    const otp = createOtpCode();
 
-    if (!serviceSid) {
-      return NextResponse.json(
-        { error: "TWILIO_VERIFY_SERVICE_SID is not configured." },
-        { status: 500 }
-      );
-    }
+    await saveOtp(phone, otp);
 
-    const response = await fetch(
-      `https://verify.twilio.com/v2/Services/${serviceSid}/Verifications`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: getTwilioAuthHeader(),
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: new URLSearchParams({
-          To: to,
-          Channel: "sms",
-        }),
-      }
-    );
+    const sms = await sendFast2SmsOtp({
+      phone,
+      otp,
+    });
 
-    const data = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
+    if (!sms.sent && process.env.NODE_ENV === "production") {
       return NextResponse.json(
         {
-          error: data.message || "OTP SMS could not be sent.",
-          detail: data,
+          error: sms.error || "OTP SMS could not be sent.",
+          detail: sms.detail,
         },
-        { status: response.status }
+        { status: 500 }
       );
     }
 
     return NextResponse.json({
       success: true,
-      message: "OTP sent successfully.",
-      phone,
+      message: sms.sent
+        ? "OTP sent successfully."
+        : "OTP generated. Fast2SMS is not configured.",
+      devOtp: sms.sent ? undefined : otp,
     });
   } catch (error) {
     return NextResponse.json(
