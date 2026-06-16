@@ -49,6 +49,16 @@ type Prescription = {
   source?: string;
 };
 
+type PaymentSummary = {
+  id?: string;
+  appointmentId?: string;
+  appointment_id?: string;
+  amount?: number | null;
+  status?: "pending" | "submitted" | "paid" | "rejected";
+  adminNote?: string;
+  admin_note?: string;
+};
+
 type Profile = {
   name: string;
   email: string;
@@ -60,6 +70,7 @@ type Profile = {
 export default function ClientDashboardPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
+  const [payments, setPayments] = useState<PaymentSummary[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
@@ -76,6 +87,17 @@ export default function ClientDashboardPage() {
 
   const patientName = useMemo(() => profile?.name || "Patient", [profile]);
   const patientEmail = useMemo(() => profile?.email || "Logged in patient", [profile]);
+
+  const paymentByAppointment = useMemo(() => {
+    const map = new Map<string, PaymentSummary>();
+
+    for (const payment of payments) {
+      const appointmentId = payment.appointmentId || payment.appointment_id;
+      if (appointmentId) map.set(appointmentId, payment);
+    }
+
+    return map;
+  }, [payments]);
 
   function updateField(
     event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -122,10 +144,20 @@ export default function ClientDashboardPage() {
     }
   }
 
+  async function loadPayments() {
+    const response = await fetch("/api/client/payments", { cache: "no-store" });
+
+    if (response.ok) {
+      const data = await response.json();
+      setPayments(data.payments || []);
+    }
+  }
+
   useEffect(() => {
     loadProfile();
     loadAppointments();
     loadPrescriptions();
+    loadPayments();
   }, []);
 
   async function bookAppointment(event: FormEvent<HTMLFormElement>) {
@@ -171,6 +203,7 @@ export default function ClientDashboardPage() {
     });
 
     await loadAppointments();
+    await loadPayments();
     setLoading(false);
 
     window.dispatchEvent(new Event("arogya-appointment-booked"));
@@ -343,6 +376,11 @@ export default function ClientDashboardPage() {
                   appointment.date || appointment.appointmentDate || appointment.appointment_date || "-";
                 const appointmentTime =
                   appointment.time || appointment.appointmentTime || appointment.appointment_time || "-";
+                const appointmentId = String(appointment.id || "");
+                const payment = appointmentId ? paymentByAppointment.get(appointmentId) : undefined;
+                const paymentStatus = payment?.status
+                  ? payment.status.toUpperCase()
+                  : "NOT SUBMITTED";
 
                 return (
                   <article key={appointment.id || index} className="history-item">
@@ -350,7 +388,20 @@ export default function ClientDashboardPage() {
                     <p>
                       {appointmentType} · {appointmentDate} · {appointmentTime}
                     </p>
-                    <span>{appointment.status || "New"}</span>
+                    <div className="appointment-meta-row">
+                      <span>{appointment.status || "New"}</span>
+                      <span className={`payment-status-pill payment-${payment?.status || "missing"}`}>
+                        Payment: {paymentStatus}
+                      </span>
+                    </div>
+
+                    {appointmentId && (
+                      <div className="appointment-payment-actions">
+                        <a href={`/client/payment/${appointmentId}`} className="dash-btn dash-btn-light">
+                          {payment?.status === "paid" ? "View Payment" : "Pay / Submit UPI"}
+                        </a>
+                      </div>
+                    )}
                   </article>
                 );
               })}
@@ -418,6 +469,52 @@ export default function ClientDashboardPage() {
       </section>
 
       <style>{`
+        .appointment-meta-row {
+          display: flex;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin-top: 8px;
+        }
+
+        .payment-status-pill {
+          display: inline-flex;
+          align-items: center;
+          border-radius: 999px;
+          padding: 6px 10px;
+          font-size: 11px;
+          font-weight: 900;
+          text-transform: uppercase;
+        }
+
+        .payment-status-pill.payment-paid {
+          background: #dcfce7;
+          color: #166534;
+        }
+
+        .payment-status-pill.payment-rejected {
+          background: #fee2e2;
+          color: #991b1b;
+        }
+
+        .payment-status-pill.payment-submitted {
+          background: #fef9c3;
+          color: #854d0e;
+        }
+
+        .payment-status-pill.payment-pending,
+        .payment-status-pill.payment-missing {
+          background: #e2e8f0;
+          color: #334155;
+        }
+
+        .appointment-payment-actions {
+          margin-top: 12px;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+
         .client-dashboard-page {
           min-height: 100vh;
           background:
