@@ -238,15 +238,7 @@ export default function PrescriptionVisitManager() {
         </p>
 
         <div className="mt-6 grid gap-4">
-          <label className="grid gap-2 text-sm font-bold text-foreground">
-            Search generated prescription sheets
-            <input
-              className="field"
-              value={visitSearch}
-              onChange={(event) => setVisitSearch(event.target.value)}
-              placeholder="Search RX, patient name, email, mobile, online/offline..."
-            />
-          </label>
+
           <label className="grid gap-2 text-sm font-bold text-foreground">
             Search Existing Patient / Appointment
             <input
