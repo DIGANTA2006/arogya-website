@@ -1,55 +1,98 @@
 ﻿import { NextResponse } from "next/server";
-import { cleanPhone, createOtpCode, saveOtp } from "@/lib/mobile-otp-store";
-import { sendSms } from "@/lib/sms";
+import { cleanPhone } from "@/lib/mobile-otp-store";
 import { checkRateLimit, getRequestIp, rateLimitPayload } from "@/lib/rate-limit";
 
 type Body = {
   phone?: string;
+  mobile?: string;
 };
 
-export async function POST(request: Request) {
-  const body = (await request.json()) as Body;
-  const phone = cleanPhone(String(body.phone || ""));
-  const ip = getRequestIp(request);
-
-  const limit = await checkRateLimit({
-    key: `auth:send-otp:${phone || "unknown"}:${ip}`,
-    limit: 3,
-    windowSeconds: 10 * 60,
-  });
-
-  if (!limit.allowed) {
-    return NextResponse.json(rateLimitPayload(limit), { status: 429 });
-  }
+function toE164Indian(phoneInput: string) {
+  const phone = cleanPhone(phoneInput);
 
   if (!phone || phone.length < 10) {
+    throw new Error("Valid mobile number is required.");
+  }
+
+  return phone.startsWith("91") ? `+${phone}` : `+91${phone}`;
+}
+
+function getTwilioAuthHeader() {
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+
+  if (!accountSid || !authToken) {
+    throw new Error("Twilio Account SID/Auth Token are not configured.");
+  }
+
+  return `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString("base64")}`;
+}
+
+export async function POST(request: Request) {
+  try {
+    const body = (await request.json()) as Body;
+    const rawPhone = String(body.phone || body.mobile || "").trim();
+    const phone = cleanPhone(rawPhone);
+    const to = toE164Indian(rawPhone);
+    const ip = getRequestIp(request);
+
+    const limit = await checkRateLimit({
+      key: `auth:send-mobile-otp:${phone || "unknown"}:${ip}`,
+      limit: 5,
+      windowSeconds: 15 * 60,
+    });
+
+    if (!limit.allowed) {
+      return NextResponse.json(rateLimitPayload(limit), { status: 429 });
+    }
+
+    const serviceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
+
+    if (!serviceSid) {
+      return NextResponse.json(
+        { error: "TWILIO_VERIFY_SERVICE_SID is not configured." },
+        { status: 500 }
+      );
+    }
+
+    const response = await fetch(
+      `https://verify.twilio.com/v2/Services/${serviceSid}/Verifications`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: getTwilioAuthHeader(),
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          To: to,
+          Channel: "sms",
+        }),
+      }
+    );
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      return NextResponse.json(
+        {
+          error: data.message || "OTP SMS could not be sent.",
+          detail: data,
+        },
+        { status: response.status }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "OTP sent successfully.",
+      phone,
+    });
+  } catch (error) {
     return NextResponse.json(
-      { error: "Valid mobile number is required." },
+      {
+        error: error instanceof Error ? error.message : "OTP send failed.",
+      },
       { status: 400 }
     );
   }
-
-  const otp = createOtpCode();
-
-  await saveOtp(phone, otp);
-
-  const sms = await sendSms(
-    phone,
-    `Your Arogya verification OTP is ${otp}. It is valid for 10 minutes.`
-  );
-
-  if (!sms.sent && process.env.NODE_ENV === "production") {
-    return NextResponse.json(
-      { error: "OTP SMS could not be sent. Please contact clinic." },
-      { status: 500 }
-    );
-  }
-
-  return NextResponse.json({
-    success: true,
-    message: sms.sent
-      ? "OTP sent successfully."
-      : "OTP generated. SMS provider not configured.",
-    devOtp: sms.sent ? undefined : otp,
-  });
 }

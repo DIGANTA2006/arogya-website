@@ -19,6 +19,8 @@ export default function ClientProfilePage() {
     mobileVerified: false,
   });
 
+  const [otp, setOtp] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -49,7 +51,86 @@ export default function ClientProfilePage() {
     setProfile((previous) => ({
       ...previous,
       [name]: value,
+      mobileVerified:
+        name === "phone" && value !== previous.phone
+          ? false
+          : previous.mobileVerified,
     }));
+  }
+
+  async function sendOtp() {
+    setStatus("");
+
+    if (!profile.phone) {
+      setStatus("Please enter mobile number first.");
+      return;
+    }
+
+    setLoading(true);
+
+    const response = await fetch("/api/auth/send-mobile-otp", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        phone: profile.phone,
+      }),
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    setLoading(false);
+
+    if (!response.ok) {
+      setStatus(data.error || "Could not send OTP.");
+      return;
+    }
+
+    setOtpSent(true);
+    setStatus("OTP sent successfully. Please check your mobile.");
+  }
+
+  async function verifyOtp() {
+    setStatus("");
+
+    if (!profile.phone || !otp) {
+      setStatus("Please enter mobile number and OTP.");
+      return;
+    }
+
+    setLoading(true);
+
+    const response = await fetch("/api/auth/verify-mobile-otp", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        phone: profile.phone,
+        otp,
+        email: profile.email,
+      }),
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    setLoading(false);
+
+    if (!response.ok) {
+      setStatus(data.error || "OTP verification failed.");
+      return;
+    }
+
+    setProfile((previous) => ({
+      ...previous,
+      phone: data.phone || previous.phone,
+      mobileVerified: true,
+    }));
+
+    setOtp("");
+    setOtpSent(false);
+    setStatus("Mobile number verified successfully.");
   }
 
   async function saveProfile(event: FormEvent<HTMLFormElement>) {
@@ -177,6 +258,48 @@ export default function ClientProfilePage() {
               />
             </label>
           </div>
+
+          {!profile.mobileVerified && (
+            <div className="rounded-2xl border border-orange-200 bg-orange-50 p-4">
+              <h2 className="text-sm font-black text-orange-800">
+                Mobile Verification Required
+              </h2>
+              <p className="mt-1 text-sm text-orange-700">
+                Verify your mobile number to book appointments and receive reminders.
+              </p>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={sendOtp}
+                  disabled={loading || !profile.phone}
+                  className="rounded-full bg-primary px-5 py-3 text-sm font-extrabold text-primary-foreground disabled:opacity-60"
+                >
+                  {otpSent ? "Resend OTP" : "Send OTP"}
+                </button>
+
+                {otpSent && (
+                  <>
+                    <input
+                      value={otp}
+                      onChange={(event) => setOtp(event.target.value)}
+                      placeholder="Enter OTP"
+                      className="min-w-0 flex-1 rounded-full border border-border px-4 py-3 text-sm outline-none focus:border-primary"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={verifyOtp}
+                      disabled={loading}
+                      className="rounded-full border border-border bg-white px-5 py-3 text-sm font-extrabold text-foreground disabled:opacity-60"
+                    >
+                      Verify OTP
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
 
           <button
             type="submit"
