@@ -21,6 +21,19 @@ type PaymentSummary = {
   verified_at?: string;
 };
 
+type AppointmentSummary = {
+  id?: string;
+  service?: string;
+  appointmentType?: string;
+  appointment_type?: string;
+  date?: string;
+  appointmentDate?: string;
+  appointment_date?: string;
+  time?: string;
+  appointmentTime?: string;
+  appointment_time?: string;
+};
+
 function statusLabel(status?: string) {
   if (status === "paid") return "Paid";
   if (status === "rejected") return "Rejected";
@@ -28,11 +41,22 @@ function statusLabel(status?: string) {
   return "Not submitted";
 }
 
+function isOnlineAppointmentType(value: unknown) {
+  const text = String(value || "").trim().toLowerCase();
+
+  return (
+    text.includes("online") ||
+    text.includes("video") ||
+    text.includes("meet")
+  );
+}
+
 export default function ClientPaymentPage() {
   const params = useParams<{ appointmentId: string }>();
   const appointmentId = params.appointmentId;
 
   const [payment, setPayment] = useState<PaymentSummary | null>(null);
+  const [appointment, setAppointment] = useState<AppointmentSummary | null>(null);
   const [amount, setAmount] = useState("");
   const [transactionRef, setTransactionRef] = useState("");
   const [proof, setProof] = useState<File | null>(null);
@@ -46,6 +70,10 @@ export default function ClientPaymentPage() {
     "Arogya Speech Therapy and Hearing Center";
   const qrImage =
     process.env.NEXT_PUBLIC_CLINIC_UPI_QR || "/payment/arogya-upi-qr.jpeg";
+
+  const appointmentType =
+    appointment?.appointmentType || appointment?.appointment_type || "";
+  const isOnlineAppointment = isOnlineAppointmentType(appointmentType);
 
   const upiLink = useMemo(() => {
     const query = new URLSearchParams();
@@ -64,6 +92,33 @@ export default function ClientPaymentPage() {
     try {
       setLoading(true);
       setMessage("");
+
+      const appointmentsResponse = await fetch("/api/client/appointments", {
+        cache: "no-store",
+      });
+
+      const appointmentsData = await appointmentsResponse.json().catch(() => ({}));
+
+      if (!appointmentsResponse.ok) {
+        setMessage(appointmentsData.error || "Could not load appointment.");
+        return;
+      }
+
+      const appointments = Array.isArray(appointmentsData.appointments)
+        ? appointmentsData.appointments
+        : [];
+
+      const foundAppointment = appointments.find((item: AppointmentSummary) => {
+        return item.id === appointmentId;
+      });
+
+      if (!foundAppointment) {
+        setMessage("Appointment not found for this patient account.");
+        setAppointment(null);
+        return;
+      }
+
+      setAppointment(foundAppointment);
 
       const response = await fetch("/api/client/payments", {
         cache: "no-store",
@@ -108,6 +163,11 @@ export default function ClientPaymentPage() {
 
   async function submitPayment(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (!isOnlineAppointment) {
+      setMessage("Online UPI payment is only for Online Video Consultation.");
+      return;
+    }
 
     try {
       setSubmitting(true);
@@ -156,8 +216,8 @@ export default function ClientPaymentPage() {
             <span className="payment-chip">Patient Payment</span>
             <h1>UPI Payment</h1>
             <p>
-              Scan the clinic QR code and submit your UPI reference number or
-              payment screenshot for verification.
+              Online UPI payment is available only for online video consultations.
+              Clinic visits and walk-in patients should pay normally at clinic.
             </p>
           </div>
 
@@ -176,27 +236,39 @@ export default function ClientPaymentPage() {
 
       <section className="payment-container payment-grid">
         <article className="payment-card qr-card">
-          <span className="payment-chip">Scan & Pay</span>
+          <span className="payment-chip">
+            {isOnlineAppointment || loading ? "Scan & Pay" : "Clinic Payment"}
+          </span>
           <h2>{clinicName}</h2>
 
-          <div className="qr-box">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={qrImage} alt="Arogya clinic UPI QR code" />
-          </div>
+          {loading || isOnlineAppointment ? (
+            <>
+              <div className="qr-box">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={qrImage} alt="Arogya clinic UPI QR code" />
+              </div>
 
-          <div className="upi-box">
-            <small>UPI ID</small>
-            <strong>{upiId}</strong>
-          </div>
+              <div className="upi-box">
+                <small>UPI ID</small>
+                <strong>{upiId}</strong>
+              </div>
 
-          <a href={upiLink} className="payment-btn dark full">
-            Open UPI App
-          </a>
+              <a href={upiLink} className="payment-btn dark full">
+                Open UPI App
+              </a>
 
-          <p className="hint">
-            On desktop, scan the QR using any mobile UPI app. On mobile, use
-            “Open UPI App”.
-          </p>
+              <p className="hint">
+                On desktop, scan the QR using any mobile UPI app. On mobile, use
+                “Open UPI App”.
+              </p>
+            </>
+          ) : (
+            <div className="message-box">
+              This appointment is marked as{" "}
+              <strong>{appointmentType || "Clinic Visit"}</strong>. Please pay at
+              clinic reception.
+            </div>
+          )}
         </article>
 
         <article className="payment-card">
@@ -207,14 +279,20 @@ export default function ClientPaymentPage() {
             </div>
 
             <span className={`payment-status ${currentStatus}`}>
-              {statusLabel(payment?.status)}
+              {isOnlineAppointment ? statusLabel(payment?.status) : "Pay at Clinic"}
             </span>
           </div>
 
           <p className="appointment-id">Appointment ID: {appointmentId}</p>
+          {appointmentType && <p className="appointment-id">Type: {appointmentType}</p>}
 
           {loading ? (
             <p className="message-box">Loading payment status...</p>
+          ) : !isOnlineAppointment ? (
+            <div className="message-box">
+              Online UPI payment is only for Online Video Consultation. For this
+              appointment, please pay normally at the clinic.
+            </div>
           ) : (
             <form onSubmit={submitPayment} className="payment-form">
               <label>

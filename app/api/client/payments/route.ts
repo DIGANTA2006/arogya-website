@@ -18,6 +18,16 @@ function cleanEmail(value: unknown) {
   return clean(value).toLowerCase();
 }
 
+function isOnlineAppointmentType(value: unknown) {
+  const text = clean(value).toLowerCase();
+
+  return (
+    text.includes("online") ||
+    text.includes("video") ||
+    text.includes("meet")
+  );
+}
+
 function getPaymentSetupError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error || "");
   const lowerMessage = message.toLowerCase();
@@ -127,6 +137,16 @@ export async function POST(request: Request) {
       );
     }
 
+    if (!isOnlineAppointmentType(appointment.appointmentType)) {
+      return NextResponse.json(
+        {
+          error:
+            "Online UPI payment is only available for Online Video Consultation. Please pay at clinic for physical appointments.",
+        },
+        { status: 403 }
+      );
+    }
+
     const proofFile =
       proofEntry instanceof File && proofEntry.size > 0 ? proofEntry : null;
 
@@ -158,4 +178,3 @@ export async function POST(request: Request) {
     );
   }
 }
-

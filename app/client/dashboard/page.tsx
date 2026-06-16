@@ -67,6 +67,16 @@ type Profile = {
   mobileVerified: boolean;
 };
 
+function isOnlineAppointmentType(value?: string) {
+  const text = String(value || "").trim().toLowerCase();
+
+  return (
+    text.includes("online") ||
+    text.includes("video") ||
+    text.includes("meet")
+  );
+}
+
 export default function ClientDashboardPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
@@ -372,15 +382,18 @@ export default function ClientDashboardPage() {
               {appointments.map((appointment, index) => {
                 const appointmentType =
                   appointment.appointmentType || appointment.appointment_type || "Appointment";
+                const isOnlineAppointment = isOnlineAppointmentType(appointmentType);
                 const appointmentDate =
                   appointment.date || appointment.appointmentDate || appointment.appointment_date || "-";
                 const appointmentTime =
                   appointment.time || appointment.appointmentTime || appointment.appointment_time || "-";
                 const appointmentId = String(appointment.id || "");
                 const payment = appointmentId ? paymentByAppointment.get(appointmentId) : undefined;
-                const paymentStatus = payment?.status
-                  ? payment.status.toUpperCase()
-                  : "NOT SUBMITTED";
+                const paymentStatus = isOnlineAppointment
+                  ? payment?.status
+                    ? payment.status.toUpperCase()
+                    : "NOT SUBMITTED"
+                  : "PAY AT CLINIC";
 
                 return (
                   <article key={appointment.id || index} className="history-item">
@@ -390,16 +403,20 @@ export default function ClientDashboardPage() {
                     </p>
                     <div className="appointment-meta-row">
                       <span>{appointment.status || "New"}</span>
-                      <span className={`payment-status-pill payment-${payment?.status || "missing"}`}>
+                      <span className={`payment-status-pill payment-${isOnlineAppointment ? payment?.status || "missing" : "clinic"}`}>
                         Payment: {paymentStatus}
                       </span>
                     </div>
 
-                    {appointmentId && (
+                    {appointmentId && isOnlineAppointment ? (
                       <div className="appointment-payment-actions">
                         <a href={`/client/payment/${appointmentId}`} className="dash-btn dash-btn-light">
                           {payment?.status === "paid" ? "View Payment" : "Pay / Submit UPI"}
                         </a>
+                      </div>
+                    ) : (
+                      <div className="appointment-payment-actions">
+                        <span className="clinic-payment-note">Pay normally at clinic</span>
                       </div>
                     )}
                   </article>
@@ -506,6 +523,23 @@ export default function ClientDashboardPage() {
         .payment-status-pill.payment-missing {
           background: #e2e8f0;
           color: #334155;
+        }
+
+        .payment-status-pill.payment-clinic {
+          background: #dbeafe;
+          color: #1d4ed8;
+        }
+
+        .clinic-payment-note {
+          display: inline-flex;
+          border-radius: 999px;
+          background: #f8fafc;
+          border: 1px solid rgba(15, 23, 42, 0.1);
+          color: #334155;
+          padding: 8px 12px;
+          font-size: 12px;
+          font-weight: 900;
+          text-transform: uppercase;
         }
 
         .appointment-payment-actions {
@@ -896,3 +930,4 @@ function EmptyState({ text }: { text: string }) {
     </div>
   );
 }
+
