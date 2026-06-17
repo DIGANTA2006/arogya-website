@@ -77,6 +77,35 @@ function isOnlineAppointmentType(value?: string) {
   );
 }
 
+function getAppointmentStartDate(appointment: Appointment) {
+  const dateText = String(
+    appointment.date || appointment.appointmentDate || appointment.appointment_date || ""
+  ).trim();
+  const timeText = String(
+    appointment.time || appointment.appointmentTime || appointment.appointment_time || ""
+  ).trim().slice(0, 5);
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateText)) return null;
+  if (!/^\d{2}:\d{2}$/.test(timeText)) return null;
+
+  const parsed = new Date(`${dateText}T${timeText}:00+05:30`);
+
+  if (Number.isNaN(parsed.getTime())) return null;
+
+  return parsed;
+}
+
+function isMeetingWindowOpen(appointment: Appointment) {
+  const start = getAppointmentStartDate(appointment);
+
+  if (!start) return false;
+
+  const now = new Date();
+  const openAt = new Date(start.getTime() - 30 * 60 * 1000);
+  const closeAt = new Date(start.getTime() + 8 * 60 * 60 * 1000);
+
+  return now >= openAt && now <= closeAt;
+}
 function buildMeetingGateUrl(appointmentId?: string) {
   return appointmentId ? `/api/meeting/${encodeURIComponent(appointmentId)}` : "";
 }
@@ -399,6 +428,7 @@ export default function ClientDashboardPage() {
                     ? buildMeetingGateUrl(appointmentId)
                     : "";
                 const payment = appointmentId ? paymentByAppointment.get(appointmentId) : undefined;
+                const meetingOpen = isMeetingWindowOpen(appointment);
                 const paymentStatus = isOnlineAppointment
                   ? payment?.status
                     ? payment.status.toUpperCase()
@@ -424,7 +454,7 @@ export default function ClientDashboardPage() {
                           {payment?.status === "paid" ? "View Payment" : "Pay / Submit UPI"}
                         </a>
 
-                        {payment?.status === "paid" && meetingLink && !appointmentCompleted ? (
+                        {payment?.status === "paid" && meetingLink && !appointmentCompleted && meetingOpen ? (
                           <a
                             href={meetingLink}
                             target="_blank"
@@ -437,7 +467,7 @@ export default function ClientDashboardPage() {
                           <span className="clinic-payment-note">
                             {appointmentCompleted
                               ? "Consultation completed"
-                              : "Meeting link available after payment verification"}
+                              : payment?.status === "paid" ? "Meeting closed or opens near appointment time" : "Meeting link available after payment verification"}
                           </span>
                         )}
                       </div>

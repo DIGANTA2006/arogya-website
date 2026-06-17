@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getAppointments } from "@/lib/appointment-store";
 import {
   buildSecureOnlineMeetingUrl,
+  isMeetingWindowOpen,
   isOnlineAppointmentType,
 } from "@/lib/consultation-flow";
 import { getPaymentByAppointmentForPatient } from "@/lib/payment-store";
@@ -38,6 +39,16 @@ export async function GET(
     return NextResponse.json(
       { error: "Meeting link is available only for online appointments." },
       { status: 400 }
+    );
+  }
+
+  if (!isMeetingWindowOpen({ date: appointment.date, time: appointment.time })) {
+    return NextResponse.json(
+      {
+        error:
+          "Meeting is closed or not open yet. It opens 30 minutes before appointment time and closes after the consultation day.",
+      },
+      { status: 403 }
     );
   }
 

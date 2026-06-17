@@ -52,6 +52,77 @@ function isOnlineAppointmentType(value: string) {
   )
 }
 
+function getAppointmentStartDate(appointment: Appointment) {
+  const dateText = String(appointment.date || "").trim();
+  const timeText = String(appointment.time || "").trim().slice(0, 5);
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateText)) return null;
+  if (!/^\d{2}:\d{2}$/.test(timeText)) return null;
+
+  const parsed = new Date(`${dateText}T${timeText}:00+05:30`);
+
+  if (Number.isNaN(parsed.getTime())) return null;
+
+  return parsed;
+}
+
+function isPastAppointment(appointment: Appointment) {
+  const start = getAppointmentStartDate(appointment);
+
+  if (!start) return false;
+
+  const closeAt = new Date(start.getTime() + 8 * 60 * 60 * 1000);
+
+  return new Date() > closeAt;
+}
+
+function isTodayAppointment(appointment: Appointment) {
+  const start = getAppointmentStartDate(appointment);
+
+  if (!start) return false;
+
+  const now = new Date();
+
+  return start.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }) ===
+    now.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+}
+
+function isUpcomingAppointment(appointment: Appointment) {
+  const start = getAppointmentStartDate(appointment);
+
+  if (!start) return false;
+
+  return start.getTime() > Date.now();
+}
+
+function isMeetingWindowOpen(appointment: Appointment) {
+  const start = getAppointmentStartDate(appointment);
+
+  if (!start) return false;
+
+  const now = new Date();
+  const openAt = new Date(start.getTime() - 30 * 60 * 1000);
+  const closeAt = new Date(start.getTime() + 8 * 60 * 60 * 1000);
+
+  return now >= openAt && now <= closeAt;
+}
+
+function appointmentMatchesAdminFilter(appointment: Appointment, filter: string) {
+  if (filter === "Active") {
+    return (
+      appointment.status !== "Completed" &&
+      appointment.status !== "Cancelled" &&
+      !isPastAppointment(appointment)
+    );
+  }
+
+  if (filter === "Today") return isTodayAppointment(appointment);
+  if (filter === "Upcoming") return isUpcomingAppointment(appointment);
+  if (filter === "Past") return isPastAppointment(appointment) || appointment.status === "Completed";
+  if (filter === "All") return true;
+
+  return appointment.status === filter;
+}
 function buildMeetingGateUrl(appointmentId?: string) {
   return appointmentId ? `/api/meeting/${encodeURIComponent(appointmentId)}` : ""
 }
@@ -74,7 +145,7 @@ export default function AppointmentManager() {
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [payments, setPayments] = useState<PaymentSummary[]>([])
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState('All')
+  const [statusFilter, setStatusFilter] = useState('Active')
   const [loading, setLoading] = useState(true)
   const [statusMessage, setStatusMessage] = useState('')
 
@@ -129,7 +200,7 @@ export default function AppointmentManager() {
         appointment.service.toLowerCase().includes(query) ||
         appointment.appointmentType.toLowerCase().includes(query)
 
-      const matchesStatus = statusFilter === 'All' || appointment.status === statusFilter
+      const matchesStatus = appointmentMatchesAdminFilter(appointment, statusFilter)
       return matchesSearch && matchesStatus
     })
   }, [appointments, search, statusFilter])
@@ -139,6 +210,8 @@ export default function AppointmentManager() {
 
     const isOnline = isOnlineAppointmentType(appointment.appointmentType)
     const payment = paymentByAppointment.get(appointment.id)
+                  const meetingOpen = payment?.status === 'paid' && isMeetingWindowOpen(appointment)
+                  const pastAppointment = isPastAppointment(appointment)
 
     if (
       isOnline &&
@@ -201,6 +274,10 @@ export default function AppointmentManager() {
           value={statusFilter}
           onChange={(event) => setStatusFilter(event.target.value)}
         >
+          <option>Active</option>
+          <option>Today</option>
+          <option>Upcoming</option>
+          <option>Past</option>
           <option>All</option>
           {statusOptions.map((status) => <option key={status}>{status}</option>)}
         </select>
@@ -242,6 +319,8 @@ export default function AppointmentManager() {
                   const isOnline = isOnlineAppointmentType(appointment.appointmentType)
                   const meetingLink = isOnline ? buildMeetingGateUrl(appointment.id) : ""
                   const payment = paymentByAppointment.get(appointment.id)
+                  const meetingOpen = payment?.status === 'paid' && isMeetingWindowOpen(appointment)
+                  const pastAppointment = isPastAppointment(appointment)
 
                   return (
                     <tr key={appointment.id} className="border-t border-border align-top">
@@ -264,7 +343,7 @@ export default function AppointmentManager() {
                             <a href="/admin/payments" className="mt-2 block text-xs font-bold text-primary">
                               Verify Payment
                             </a>
-                            {payment?.status === 'paid' ? (
+                            {meetingOpen ? (
                               <a
                                 href={meetingLink}
                                 target="_blank"
@@ -275,7 +354,7 @@ export default function AppointmentManager() {
                               </a>
                             ) : (
                               <span className="mt-2 inline-flex rounded-full bg-slate-100 px-3 py-1.5 text-xs font-black text-slate-500">
-                                Meeting locked until paid
+                                {payment?.status === 'paid' ? 'Meeting closed / not due now' : 'Meeting locked until paid'}
                               </span>
                             )}
                           </div>
@@ -288,6 +367,11 @@ export default function AppointmentManager() {
                       <td className="p-4">
                         <strong>{appointment.date}</strong>
                         <p className="mt-1 text-xs text-muted-foreground">{appointment.time}</p>
+                        {pastAppointment ? (
+                          <p className="mt-2 inline-flex rounded-full bg-slate-100 px-2 py-1 text-[11px] font-black uppercase text-slate-600">
+                            Past
+                          </p>
+                        ) : null}
                       </td>
                       <td className="p-4">
                         <span className={`mb-2 inline-flex rounded-full px-3 py-1 text-xs font-bold ${statusClass(appointment.status)}`}>
