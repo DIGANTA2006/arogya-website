@@ -1,5 +1,11 @@
 ﻿const cards = [
   {
+    title: "Audit Logs",
+    text: "Review sensitive database changes for appointments, payments, prescriptions, patients and reviews.",
+    link: "/admin/audit-logs",
+    button: "View Logs",
+  },
+  {
     title: "Smart Prescription Sheets",
     text: "Reception creates QR prescription sheets for offline or online patients before the doctor writes by hand.",
     link: "/admin/prescription-visits",
