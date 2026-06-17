@@ -1,6 +1,6 @@
+﻿import { assertSameOrigin } from "@/lib/request-guard";
 import { NextResponse } from "next/server";
 import { addReview, getReviews } from "@/lib/review-store";
-
 export const dynamic = "force-dynamic";
 
 type ReviewBody = {
@@ -32,6 +32,12 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const originCheck = assertSameOrigin(request);
+
+  if (!originCheck.ok) {
+    return originCheck.response;
+  }
+
   try {
     const body = (await request.json()) as ReviewBody;
 

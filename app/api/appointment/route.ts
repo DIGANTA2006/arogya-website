@@ -1,4 +1,5 @@
-﻿import { cookies } from "next/headers";
+﻿import { assertSameOrigin } from "@/lib/request-guard";
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import {
   normalizeTime,
@@ -14,7 +15,6 @@ import {
 import { hasPortalRole } from "@/lib/portal-auth";
 import { findPatientByEmail } from "@/lib/patient-store";
 import { sendSms } from "@/lib/sms";
-
 type AppointmentBody = {
   age?: string;
   phone?: string;
@@ -60,6 +60,12 @@ async function sendResendEmail(input: {
 }
 
 export async function POST(request: Request) {
+  const originCheck = assertSameOrigin(request);
+
+  if (!originCheck.ok) {
+    return originCheck.response;
+  }
+
   try {
     const allowed = await hasPortalRole("client");
 

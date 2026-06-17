@@ -1,4 +1,5 @@
-﻿import { NextResponse } from "next/server";
+﻿import { assertSameOrigin } from "@/lib/request-guard";
+import { NextResponse } from "next/server";
 import {
   generateSecureToken,
   getSiteUrl,
@@ -8,12 +9,17 @@ import {
 import { findPatientByEmail } from "@/lib/patient-store";
 import { checkRateLimit, getRequestIp, rateLimitPayload } from "@/lib/rate-limit";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
-
 type Body = {
   email?: string;
 };
 
 export async function POST(request: Request) {
+  const originCheck = assertSameOrigin(request);
+
+  if (!originCheck.ok) {
+    return originCheck.response;
+  }
+
   try {
     const body = (await request.json()) as Body;
     const email = String(body.email || "").trim().toLowerCase();

@@ -1,4 +1,5 @@
-﻿import { NextResponse } from "next/server";
+﻿import { assertSameOrigin } from "@/lib/request-guard";
+import { NextResponse } from "next/server";
 import { hasPortalRole } from "@/lib/portal-auth";
 import { createPrescription } from "@/lib/prescription-store";
 import {
@@ -51,6 +52,12 @@ function validateUploadFile(file: File) {
 }
 
 export async function POST(request: Request) {
+  const originCheck = assertSameOrigin(request);
+
+  if (!originCheck.ok) {
+    return originCheck.response;
+  }
+
   const allowed = await hasPortalRole("admin");
 
   if (!allowed) {

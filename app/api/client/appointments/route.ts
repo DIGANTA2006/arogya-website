@@ -1,4 +1,5 @@
-﻿import { cookies } from "next/headers";
+﻿import { assertSameOrigin } from "@/lib/request-guard";
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import {
   normalizeTime,
@@ -13,7 +14,6 @@ import {
 import { findPatientByEmail } from "@/lib/patient-store";
 import { createPrescriptionVisit } from "@/lib/prescription-visit-store";
 import { hasPortalRole } from "@/lib/portal-auth";
-
 type Body = {
   age?: string;
   phone?: string;
@@ -49,6 +49,12 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const originCheck = assertSameOrigin(request);
+
+  if (!originCheck.ok) {
+    return originCheck.response;
+  }
+
   try {
     const allowed = await hasPortalRole("client");
 

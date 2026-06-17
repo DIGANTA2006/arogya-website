@@ -1,4 +1,5 @@
-﻿import { cookies } from "next/headers";
+﻿import { assertSameOrigin } from "@/lib/request-guard";
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { getAppointments } from "@/lib/appointment-store";
 import { hasPortalRole } from "@/lib/portal-auth";
@@ -86,6 +87,12 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const originCheck = assertSameOrigin(request);
+
+  if (!originCheck.ok) {
+    return originCheck.response;
+  }
+
   try {
     const session = await getClientEmailAndName();
 

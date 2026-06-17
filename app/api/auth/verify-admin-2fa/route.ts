@@ -1,8 +1,8 @@
-﻿import { NextResponse } from "next/server";
+﻿import { assertSameOrigin } from "@/lib/request-guard";
+import { NextResponse } from "next/server";
 import { verifyAdmin2faChallenge } from "@/lib/admin-2fa-store";
 import { createPortalToken } from "@/lib/portal-auth";
 import { checkRateLimit, getRequestIp, rateLimitPayload } from "@/lib/rate-limit";
-
 type VerifyBody = {
   challengeId?: string;
   code?: string;
@@ -33,6 +33,12 @@ function setAdminCookies(
 }
 
 export async function POST(request: Request) {
+  const originCheck = assertSameOrigin(request);
+
+  if (!originCheck.ok) {
+    return originCheck.response;
+  }
+
   try {
     const body = (await request.json()) as VerifyBody;
 

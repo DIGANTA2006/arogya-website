@@ -1,4 +1,5 @@
-﻿import { NextResponse } from "next/server";
+﻿import { assertSameOrigin } from "@/lib/request-guard";
+import { NextResponse } from "next/server";
 import { hasPortalRole } from "@/lib/portal-auth";
 import {
   createPaymentProofSignedUrl,
@@ -61,6 +62,12 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
+  const originCheck = assertSameOrigin(request);
+
+  if (!originCheck.ok) {
+    return originCheck.response;
+  }
+
   try {
     const allowed = await hasPortalRole("admin");
 

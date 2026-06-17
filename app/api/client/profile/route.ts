@@ -1,9 +1,9 @@
-﻿import { cookies } from "next/headers";
+﻿import { assertSameOrigin } from "@/lib/request-guard";
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { escapeHtml } from "@/lib/html";
 import { hasPortalRole } from "@/lib/portal-auth";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
-
 type ProfileBody = {
   name?: string;
   age?: string;
@@ -122,6 +122,12 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
+  const originCheck = assertSameOrigin(request);
+
+  if (!originCheck.ok) {
+    return originCheck.response;
+  }
+
   try {
     const session = await getClientSession();
 

@@ -1,4 +1,5 @@
-﻿import { cookies } from "next/headers";
+﻿import { assertSameOrigin } from "@/lib/request-guard";
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import {
   generateSecureToken,
@@ -10,7 +11,6 @@ import { cleanPhone } from "@/lib/mobile-otp-store";
 import { createPatient } from "@/lib/patient-store";
 import { checkRateLimit, getRequestIp, rateLimitPayload } from "@/lib/rate-limit";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
-
 type RegisterBody = {
   name?: string;
   age?: string;
@@ -25,6 +25,12 @@ function clean(value?: string) {
 }
 
 export async function POST(request: Request) {
+  const originCheck = assertSameOrigin(request);
+
+  if (!originCheck.ok) {
+    return originCheck.response;
+  }
+
   try {
     const body = (await request.json()) as RegisterBody;
 

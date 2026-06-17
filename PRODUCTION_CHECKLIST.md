@@ -90,3 +90,7 @@ Confirmed in Vercel Production:
 - [x] OTP challenge expires after 10 minutes
 - [x] OTP challenge is stored hashed
 - [x] Admin dashboard cookies are issued only after OTP verification
+## CSRF / Origin Protection
+
+- [x] Same-origin request guard added.
+- [x] Sensitive mutation routes patched.

@@ -1,15 +1,21 @@
-﻿import { NextResponse } from "next/server";
+﻿import { assertSameOrigin } from "@/lib/request-guard";
+import { NextResponse } from "next/server";
 import { hashToken } from "@/lib/auth-email";
 import { hashPassword } from "@/lib/patient-store";
 import { checkRateLimit, getRequestIp, rateLimitPayload } from "@/lib/rate-limit";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
-
 type Body = {
   token?: string;
   password?: string;
 };
 
 export async function POST(request: Request) {
+  const originCheck = assertSameOrigin(request);
+
+  if (!originCheck.ok) {
+    return originCheck.response;
+  }
+
   try {
     const body = (await request.json()) as Body;
     const token = String(body.token || "").trim();

@@ -1,5 +1,4 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
-
 function clearSession(response: NextResponse) {
   response.cookies.set("portal_role", "", { path: "/", maxAge: 0 });
   response.cookies.set("portal_token", "", { path: "/", maxAge: 0 });

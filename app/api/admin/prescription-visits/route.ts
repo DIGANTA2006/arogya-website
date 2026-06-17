@@ -1,4 +1,5 @@
-﻿import { NextResponse } from "next/server";
+﻿import { assertSameOrigin } from "@/lib/request-guard";
+import { NextResponse } from "next/server";
 import {
   generateSecureToken,
   getSiteUrl,
@@ -12,7 +13,6 @@ import {
 } from "@/lib/prescription-visit-store";
 import { createPatient, findPatientByEmail } from "@/lib/patient-store";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
-
 type Body = {
   patientEmail?: string;
   patientName?: string;
@@ -161,6 +161,12 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const originCheck = assertSameOrigin(request);
+
+  if (!originCheck.ok) {
+    return originCheck.response;
+  }
+
   const allowed = await hasPortalRole("admin");
 
   if (!allowed) {

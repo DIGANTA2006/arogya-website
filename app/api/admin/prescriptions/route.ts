@@ -1,7 +1,7 @@
-﻿import { NextResponse } from "next/server";
+﻿import { assertSameOrigin } from "@/lib/request-guard";
+import { NextResponse } from "next/server";
 import { createPrescription, getPrescriptions } from "@/lib/prescription-store";
 import { hasPortalRole } from "@/lib/portal-auth";
-
 export async function GET() {
   const allowed = await hasPortalRole("admin");
   if (!allowed) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
@@ -10,6 +10,12 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const originCheck = assertSameOrigin(request);
+
+  if (!originCheck.ok) {
+    return originCheck.response;
+  }
+
   const allowed = await hasPortalRole("admin");
   if (!allowed) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 

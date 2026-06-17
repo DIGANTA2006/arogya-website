@@ -1,8 +1,8 @@
-﻿import { cookies } from "next/headers";
+﻿import { assertSameOrigin } from "@/lib/request-guard";
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { cleanPhone, markPatientMobileVerified } from "@/lib/mobile-otp-store";
 import { checkRateLimit, getRequestIp, rateLimitPayload } from "@/lib/rate-limit";
-
 type Body = {
   phone?: string;
   mobile?: string;
@@ -41,6 +41,12 @@ function getTwilioAuthHeader() {
 }
 
 export async function POST(request: Request) {
+  const originCheck = assertSameOrigin(request);
+
+  if (!originCheck.ok) {
+    return originCheck.response;
+  }
+
   try {
     const body = (await request.json()) as Body;
     const rawPhone = String(body.phone || body.mobile || "").trim();

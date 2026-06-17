@@ -1,3 +1,4 @@
+﻿import { assertSameOrigin } from "@/lib/request-guard";
 import { NextResponse } from "next/server";
 import {
   getReviews,
@@ -5,7 +6,6 @@ import {
   updateReviewStatus,
 } from "@/lib/review-store";
 import { hasPortalRole } from "@/lib/portal-auth";
-
 export const dynamic = "force-dynamic";
 
 const validStatuses: ReviewStatus[] = ["Pending", "Approved", "Rejected"];
@@ -35,6 +35,12 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
+  const originCheck = assertSameOrigin(request);
+
+  if (!originCheck.ok) {
+    return originCheck.response;
+  }
+
   const allowed = await hasPortalRole("admin");
 
   if (!allowed) {
