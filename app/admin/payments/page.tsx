@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 
@@ -352,6 +352,17 @@ export default function AdminPaymentsPage() {
                       >
                         Reset Submitted
                       </button>
+
+                      {payment.status === "paid" && appointmentId ? (
+                        <a
+                          href={`/api/meeting/${encodeURIComponent(appointmentId)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="rounded-full bg-slate-950 px-5 py-2.5 text-sm font-black text-white shadow-sm hover:bg-primary"
+                        >
+                          Start Meeting
+                        </a>
+                      ) : null}
                     </div>
                   </article>
                 );

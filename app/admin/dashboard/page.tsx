@@ -1,4 +1,4 @@
-﻿const cards = [
+const cards = [
   {
     title: "Audit Logs",
     text: "Review sensitive database changes for appointments, payments, prescriptions, patients and reviews.",
@@ -34,6 +34,12 @@
     text: "Review patient UPI references and screenshots, then mark payment as paid or rejected.",
     link: "/admin/payments",
     button: "Verify Payments",
+  },
+  {
+    title: "Online Meeting Access",
+    text: "Open paid online consultation meetings from the appointment CRM after payment is verified.",
+    link: "/admin/appointments",
+    button: "Open Meeting List",
   },
   {
     title: "Prescription Archive",
