@@ -397,6 +397,8 @@ export default function ClientDashboardPage() {
                 const appointmentTime =
                   appointment.time || appointment.appointmentTime || appointment.appointment_time || "-";
                 const appointmentId = String(appointment.id || "");
+                const appointmentCompleted =
+                  String(appointment.status || "").toLowerCase() === "completed";
                 const meetingLink =
                   isOnlineAppointment && appointmentId
                     ? buildOnlineMeetingLink(appointmentId)
@@ -427,7 +429,7 @@ export default function ClientDashboardPage() {
                           {payment?.status === "paid" ? "View Payment" : "Pay / Submit UPI"}
                         </a>
 
-                        {payment?.status === "paid" && meetingLink ? (
+                        {payment?.status === "paid" && meetingLink && !appointmentCompleted ? (
                           <a
                             href={meetingLink}
                             target="_blank"
@@ -438,7 +440,9 @@ export default function ClientDashboardPage() {
                           </a>
                         ) : (
                           <span className="clinic-payment-note">
-                            Meeting link available after payment verification
+                            {appointmentCompleted
+                              ? "Consultation completed"
+                              : "Meeting link available after payment verification"}
                           </span>
                         )}
                       </div>
@@ -958,5 +962,6 @@ function EmptyState({ text }: { text: string }) {
     </div>
   );
 }
+
 
 

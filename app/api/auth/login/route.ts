@@ -101,6 +101,25 @@ export async function POST(request: Request) {
         );
       }
 
+      const admin2faEnabled = process.env.ADMIN_2FA_ENABLED === "true";
+
+      if (!admin2faEnabled) {
+        const token = await createPortalToken("admin", email);
+        const response = NextResponse.json({
+          success: true,
+          role: "admin",
+          requiresTwoFactor: false,
+        });
+
+        return setPortalCookies(
+          response,
+          "admin",
+          token,
+          email,
+          "Clinic Admin"
+        );
+      }
+
       const challenge = await createAdmin2faChallenge({
         adminEmail: email,
         ipAddress: ip,

@@ -147,8 +147,8 @@ export async function isAppointmentSlotTaken(date: string, time: string) {
   const { data, error } = await supabase
     .from("appointments")
     .select("id")
-    .eq("date", date)
-    .eq("time", time)
+    .eq("appointment_date", date)
+    .eq("appointment_time", time)
     .limit(1);
 
   if (error) {
@@ -192,8 +192,8 @@ export async function getAvailableSlots(dateValue: string) {
 
   const { data, error } = await supabase
     .from("appointments")
-    .select("time")
-    .eq("date", dateValidation.date);
+    .select("appointment_time")
+    .eq("appointment_date", dateValidation.date);
 
   if (error) {
     throw new Error(error.message);
@@ -201,7 +201,9 @@ export async function getAvailableSlots(dateValue: string) {
 
   const booked = new Set(
     (data || [])
-      .map((row: { time?: string }) => normalizeTime(row.time || ""))
+      .map((row: { appointment_time?: string; time?: string }) =>
+        normalizeTime(row.appointment_time || row.time || "")
+      )
       .filter(Boolean)
   );
 

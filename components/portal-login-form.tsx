@@ -196,7 +196,7 @@ export default function PortalLoginForm({
         <div className="mt-6 rounded-2xl bg-secondary p-4 text-xs leading-relaxed text-muted-foreground">
           <strong>
             {role === "admin"
-              ? "Admin login is protected with email verification."
+              ? "Admin login is protected with secure password and optional email verification."
               : "Patient portal is protected with secure login."}
           </strong>
           <br />
