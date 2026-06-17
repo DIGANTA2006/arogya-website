@@ -31,3 +31,8 @@
 - CSRF token or strict Origin validation on all mutation routes
 - Remove development filesystem fallback in production-only mode
 - Automated backup and retention policy
+## Production Runtime Lock
+
+- [x] Critical production data must use Supabase.
+- [x] Appointment and prescription-visit stores no longer silently fall back to local JSON files when Supabase env variables are missing in production.
+- [x] Local JSON fallback remains development-only.

@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "fs/promises";
+﻿import { mkdir, readFile, writeFile } from "fs/promises";
 import { join } from "path";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
@@ -25,7 +25,11 @@ const filePath = join(dataDir, "appointments.json");
 function getAdminOrNull() {
   try {
     return getSupabaseAdmin();
-  } catch {
+  } catch (error) {
+    if (process.env.NODE_ENV === "production") {
+      throw error;
+    }
+
     return null;
   }
 }

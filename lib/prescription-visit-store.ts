@@ -28,7 +28,11 @@ const filePath = join(dataDir, "prescription-visits.json");
 function getOptionalSupabaseAdmin() {
   try {
     return getSupabaseAdmin();
-  } catch {
+  } catch (error) {
+    if (process.env.NODE_ENV === "production") {
+      throw error;
+    }
+
     return null;
   }
 }

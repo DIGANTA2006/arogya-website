@@ -94,3 +94,8 @@ Confirmed in Vercel Production:
 
 - [x] Same-origin request guard added.
 - [x] Sensitive mutation routes patched.
+## Production Runtime Lock
+
+- [x] Production Supabase env variables confirmed
+- [x] Critical medical data uses Supabase in production
+- [x] Silent production fallback to local files is blocked
