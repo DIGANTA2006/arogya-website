@@ -46,7 +46,7 @@ export async function GET(
     return NextResponse.json(
       {
         error:
-          "Meeting is closed or not open yet. It opens 30 minutes before appointment time and closes after the consultation day.",
+          "Meeting is closed or not open yet. It opens 30 minutes before appointment time and closes after the consultation window.",
       },
       { status: 403 }
     );

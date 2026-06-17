@@ -95,6 +95,15 @@ function getAppointmentStartDate(appointment: Appointment) {
   return parsed;
 }
 
+function isPastAppointment(appointment: Appointment) {
+  const start = getAppointmentStartDate(appointment);
+
+  if (!start) return false;
+
+  const closeAt = new Date(start.getTime() + 8 * 60 * 60 * 1000);
+
+  return new Date() > closeAt;
+}
 function isMeetingWindowOpen(appointment: Appointment) {
   const start = getAppointmentStartDate(appointment);
 
@@ -442,7 +451,7 @@ export default function ClientDashboardPage() {
                       {appointmentType} · {appointmentDate} · {appointmentTime}
                     </p>
                     <div className="appointment-meta-row">
-                      <span>{appointment.status || "New"}</span>
+                      <span>{isPastAppointment(appointment) ? "Done" : appointment.status || "New"}</span>
                       <span className={`payment-status-pill payment-${isOnlineAppointment ? payment?.status || "missing" : "clinic"}`}>
                         Payment: {paymentStatus}
                       </span>
@@ -467,7 +476,7 @@ export default function ClientDashboardPage() {
                           <span className="clinic-payment-note">
                             {appointmentCompleted
                               ? "Consultation completed"
-                              : payment?.status === "paid" ? "Meeting closed or opens near appointment time" : "Meeting link available after payment verification"}
+                              : payment?.status === "paid" ? "Meeting done / closed" : "Meeting link available after payment verification"}
                           </span>
                         )}
                       </div>

@@ -354,7 +354,7 @@ export default function AppointmentManager() {
                               </a>
                             ) : (
                               <span className="mt-2 inline-flex rounded-full bg-slate-100 px-3 py-1.5 text-xs font-black text-slate-500">
-                                {payment?.status === 'paid' ? 'Meeting closed / not due now' : 'Meeting locked until paid'}
+                                {payment?.status === 'paid' ? 'Meeting done / closed' : 'Meeting locked until paid'}
                               </span>
                             )}
                           </div>
@@ -367,6 +367,11 @@ export default function AppointmentManager() {
                       <td className="p-4">
                         <strong>{appointment.date}</strong>
                         <p className="mt-1 text-xs text-muted-foreground">{appointment.time}</p>
+                        {pastAppointment ? (
+                          <p className="mt-2 inline-flex rounded-full bg-slate-100 px-2 py-1 text-[11px] font-black uppercase text-slate-600">
+                            Past appointment
+                          </p>
+                        ) : null}
                         {pastAppointment ? (
                           <p className="mt-2 inline-flex rounded-full bg-slate-100 px-2 py-1 text-[11px] font-black uppercase text-slate-600">
                             Past

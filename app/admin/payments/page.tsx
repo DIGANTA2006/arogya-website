@@ -1,8 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type PaymentStatus = "pending" | "submitted" | "paid" | "rejected";
+
+type AppointmentSummary = {
+  id: string;
+  date?: string;
+  time?: string;
+  status?: string;
+};
 
 type AdminPayment = {
   id: string;
@@ -36,6 +43,31 @@ function getPaymentValue(payment: AdminPayment, camel: keyof AdminPayment, snake
   return payment[camel] || payment[snake] || "";
 }
 
+function getAppointmentStartDate(appointment?: AppointmentSummary) {
+  const dateText = String(appointment?.date || "").trim();
+  const timeText = String(appointment?.time || "").trim().slice(0, 5);
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateText)) return null;
+  if (!/^\d{2}:\d{2}$/.test(timeText)) return null;
+
+  const parsed = new Date(`${dateText}T${timeText}:00+05:30`);
+
+  if (Number.isNaN(parsed.getTime())) return null;
+
+  return parsed;
+}
+
+function isMeetingWindowOpen(appointment?: AppointmentSummary) {
+  const start = getAppointmentStartDate(appointment);
+
+  if (!start) return false;
+
+  const now = new Date();
+  const openAt = new Date(start.getTime() - 30 * 60 * 1000);
+  const closeAt = new Date(start.getTime() + 8 * 60 * 60 * 1000);
+
+  return now >= openAt && now <= closeAt;
+}
 function statusLabel(status: PaymentStatus) {
   if (status === "paid") return "Paid";
   if (status === "rejected") return "Rejected";
@@ -45,6 +77,7 @@ function statusLabel(status: PaymentStatus) {
 
 export default function AdminPaymentsPage() {
   const [payments, setPayments] = useState<AdminPayment[]>([]);
+  const [appointments, setAppointments] = useState<AppointmentSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState("");
   const [message, setMessage] = useState("");
@@ -66,6 +99,15 @@ export default function AdminPaymentsPage() {
       }
 
       setPayments(data.payments || []);
+
+      const appointmentsResponse = await fetch("/api/admin/appointments", {
+        cache: "no-store",
+      });
+
+      if (appointmentsResponse.ok) {
+        const appointmentsData = await appointmentsResponse.json().catch(() => ({}));
+        setAppointments(appointmentsData.appointments || []);
+      }
     } catch {
       setMessage("Could not load payments.");
     } finally {
@@ -76,6 +118,16 @@ export default function AdminPaymentsPage() {
   useEffect(() => {
     loadPayments();
   }, []);
+
+  const appointmentById = useMemo(() => {
+    const map = new Map<string, AppointmentSummary>();
+
+    for (const appointment of appointments) {
+      if (appointment.id) map.set(appointment.id, appointment);
+    }
+
+    return map;
+  }, [appointments]);
 
   async function updatePaymentStatus(payment: AdminPayment, status: PaymentStatus) {
     try {
@@ -229,6 +281,11 @@ export default function AdminPaymentsPage() {
                 const verifiedAt = String(
                   getPaymentValue(payment, "verifiedAt", "verified_at")
                 );
+                const appointment = appointmentId
+                  ? appointmentById.get(appointmentId)
+                  : undefined;
+                const meetingOpen =
+                  payment.status === "paid" && isMeetingWindowOpen(appointment);
 
                 return (
                   <article
@@ -353,7 +410,7 @@ export default function AdminPaymentsPage() {
                         Reset Submitted
                       </button>
 
-                      {payment.status === "paid" && appointmentId ? (
+                      {meetingOpen && appointmentId ? (
                         <a
                           href={`/api/meeting/${encodeURIComponent(appointmentId)}`}
                           target="_blank"
@@ -362,6 +419,10 @@ export default function AdminPaymentsPage() {
                         >
                           Start Meeting
                         </a>
+                      ) : payment.status === "paid" ? (
+                        <span className="rounded-full bg-slate-100 px-5 py-2.5 text-sm font-black text-slate-500">
+                          Meeting done / closed
+                        </span>
                       ) : null}
                     </div>
                   </article>
