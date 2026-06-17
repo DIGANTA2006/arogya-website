@@ -1,4 +1,4 @@
-﻿import { assertSameOrigin } from "@/lib/request-guard";
+import { assertSameOrigin } from "@/lib/request-guard";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import {
@@ -8,10 +8,7 @@ import {
 import { addAppointment } from "@/lib/appointment-store";
 import { createPrescriptionVisit } from "@/lib/prescription-visit-store";
 import { escapeHtml } from "@/lib/html";
-import {
-  buildOnlineConsultationLink,
-  isOnlineAppointment,
-} from "@/lib/meeting-link";
+import { isOnlineAppointment } from "@/lib/meeting-link";
 import { hasPortalRole } from "@/lib/portal-auth";
 import { findPatientByEmail } from "@/lib/patient-store";
 import { sendSms } from "@/lib/sms";
@@ -35,10 +32,12 @@ async function sendResendEmail(input: {
   html: string;
 }) {
   const resendApiKey = process.env.RESEND_API_KEY;
-  const fromEmail =
-    process.env.RESEND_FROM_EMAIL || "Arogya Clinic <onboarding@resend.dev>";
+  const fromEmail = process.env.RESEND_FROM_EMAIL;
 
-  if (!resendApiKey || resendApiKey.includes("your_real")) {
+  if (!resendApiKey || !fromEmail || resendApiKey.includes("your_real")) {
+    console.error(
+      "[appointment-api] RESEND_API_KEY or RESEND_FROM_EMAIL is not configured correctly."
+    );
     return false;
   }
 
@@ -136,7 +135,7 @@ export async function POST(request: Request) {
     }
 
     const online = isOnlineAppointment(appointmentType);
-    const meetingLink = online ? buildOnlineConsultationLink(appointment.id) : "";
+    const requiresOnlinePayment = online;
     const clinicEmail = process.env.APPOINTMENT_EMAIL;
 
     const adminHtml = `
@@ -151,8 +150,8 @@ export async function POST(request: Request) {
       <p><strong>Date:</strong> ${escapeHtml(appointment.date)}</p>
       <p><strong>Time:</strong> ${escapeHtml(appointment.time)}</p>
       ${
-        meetingLink
-          ? `<p><strong>Online Meeting Link:</strong> <a href="${escapeHtml(meetingLink)}">${escapeHtml(meetingLink)}</a></p>`
+        online
+          ? `<p><strong>Online Consultation:</strong> Payment verification is required before the meeting link is shared.</p>`
           : ""
       }
       <p><strong>Message:</strong> ${escapeHtml(appointment.message || "No message")}</p>
@@ -167,8 +166,8 @@ export async function POST(request: Request) {
       <p><strong>Date:</strong> ${escapeHtml(appointment.date)}</p>
       <p><strong>Time:</strong> ${escapeHtml(appointment.time)}</p>
       ${
-        meetingLink
-          ? `<p><strong>Online Meeting Link:</strong> <a href="${escapeHtml(meetingLink)}">${escapeHtml(meetingLink)}</a></p>`
+        online
+          ? `<p><strong>Online Consultation:</strong> Please complete payment from your patient dashboard. The meeting link will be available only after clinic verification.</p>`
           : `<p><strong>Clinic:</strong> Opposite Devi ka Bagh, near Dagar Gaire, Sanchi Road, Vidisha 464001</p>`
       }
       <p>The clinic may contact you for confirmation if required.</p>
@@ -198,8 +197,8 @@ export async function POST(request: Request) {
 
     await Promise.allSettled(emailTasks);
 
-    const smsMessage = meetingLink
-      ? `Arogya appointment received: ${service} on ${slotValidation.date} at ${slotValidation.time}. Online link: ${meetingLink}`
+    const smsMessage = online
+      ? `Arogya online appointment received: ${service} on ${slotValidation.date} at ${slotValidation.time}. Please complete payment in your patient dashboard. Meeting link is shared after clinic verification.`
       : `Arogya appointment received: ${service} on ${slotValidation.date} at ${slotValidation.time}. Clinic: Sanchi Road, Vidisha.`;
 
     if (phone) {
@@ -211,7 +210,8 @@ export async function POST(request: Request) {
       appointmentId: appointment.id,
       prescriptionVisitId: prescriptionVisit ? prescriptionVisit.id : null,
       rxNumber: prescriptionVisit ? prescriptionVisit.rxNumber : null,
-      meetingLink: meetingLink || null,
+      meetingLink: null,
+      requiresOnlinePayment,
       message: "Appointment booked successfully.",
     });
   } catch (error) {

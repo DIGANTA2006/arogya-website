@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 type PortalRole = "admin" | "client";
 
@@ -81,7 +81,9 @@ export async function proxy(request: NextRequest) {
     path.startsWith("/admin/prescriptions") ||
     path.startsWith("/admin/prescription-visits") ||
     path.startsWith("/admin/scanner") ||
-    path.startsWith("/admin/reviews")
+    path.startsWith("/admin/reviews") ||
+    path.startsWith("/admin/payments") ||
+    path.startsWith("/admin/audit-logs")
   ) {
     const valid = await isValidSession(request, "admin");
 
@@ -90,7 +92,11 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  if (path.startsWith("/client/dashboard") || path.startsWith("/client/profile")) {
+  if (
+    path.startsWith("/client/dashboard") ||
+    path.startsWith("/client/profile") ||
+    path.startsWith("/client/payment")
+  ) {
     const valid = await isValidSession(request, "client");
 
     if (!valid) {
@@ -109,7 +115,10 @@ export const config = {
     "/admin/prescription-visits/:path*",
     "/admin/scanner/:path*",
     "/admin/reviews/:path*",
+    "/admin/payments/:path*",
+    "/admin/audit-logs/:path*",
     "/client/dashboard/:path*",
     "/client/profile/:path*",
+    "/client/payment/:path*",
   ],
 };

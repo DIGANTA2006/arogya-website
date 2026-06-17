@@ -1,4 +1,4 @@
-﻿import { createHash, randomInt, randomUUID } from "crypto";
+import { createHash, randomInt, randomUUID } from "crypto";
 import { escapeHtml } from "@/lib/html";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
@@ -156,10 +156,12 @@ export async function sendAdmin2faEmail(input: {
   code: string;
 }) {
   const resendApiKey = process.env.RESEND_API_KEY;
-  const fromEmail =
-    process.env.RESEND_FROM_EMAIL || "Arogya Clinic <onboarding@resend.dev>";
+  const fromEmail = process.env.RESEND_FROM_EMAIL;
 
-  if (!resendApiKey) {
+  if (!resendApiKey || !fromEmail || resendApiKey.includes("your_")) {
+    console.error(
+      "[admin-2fa] RESEND_API_KEY or RESEND_FROM_EMAIL is not configured correctly."
+    );
     return false;
   }
 
@@ -181,19 +183,32 @@ export async function sendAdmin2faEmail(input: {
     </div>
   `;
 
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${resendApiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from: fromEmail,
-      to: [input.to],
-      subject: "Arogya Admin Login Verification Code",
-      html,
-    }),
-  });
+  try {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${resendApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: fromEmail,
+        to: [input.to],
+        subject: "Arogya Admin Login Verification Code",
+        html,
+      }),
+    });
 
-  return response.ok;
+    if (!response.ok) {
+      const detail = await response.text().catch(() => "");
+      console.error("[admin-2fa] Resend rejected admin verification email.", {
+        status: response.status,
+        detail: detail.slice(0, 700),
+      });
+    }
+
+    return response.ok;
+  } catch (error) {
+    console.error("[admin-2fa] Resend request failed.", error);
+    return false;
+  }
 }

@@ -1,4 +1,4 @@
-﻿import { assertSameOrigin } from "@/lib/request-guard";
+import { assertSameOrigin } from "@/lib/request-guard";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import {
@@ -7,10 +7,7 @@ import {
 } from "@/lib/appointment-slots";
 import { addAppointment, getAppointments } from "@/lib/appointment-store";
 import { sendAppointmentEmails } from "@/lib/appointment-email";
-import {
-  buildOnlineConsultationLink,
-  isOnlineAppointment,
-} from "@/lib/meeting-link";
+
 import { findPatientByEmail } from "@/lib/patient-store";
 import { createPrescriptionVisit } from "@/lib/prescription-visit-store";
 import { hasPortalRole } from "@/lib/portal-auth";
@@ -140,9 +137,10 @@ export async function POST(request: Request) {
       prescriptionVisit = null;
     }
 
-    const meetingLink = isOnlineAppointment(appointment.appointmentType)
-      ? buildOnlineConsultationLink(appointment.id)
-      : "";
+    const requiresOnlinePayment =
+      appointment.appointmentType.toLowerCase().includes("online") ||
+      appointment.appointmentType.toLowerCase().includes("video") ||
+      appointment.appointmentType.toLowerCase().includes("meet");
 
     await sendAppointmentEmails({
       patientName: appointment.name,
@@ -162,7 +160,8 @@ export async function POST(request: Request) {
       appointmentId: appointment.id,
       prescriptionVisitId: prescriptionVisit ? prescriptionVisit.id : null,
       rxNumber: prescriptionVisit ? prescriptionVisit.rxNumber : null,
-      meetingLink: meetingLink || null,
+      meetingLink: null,
+      requiresOnlinePayment,
       message:
         "Appointment booked successfully. Confirmation email has been sent.",
     });

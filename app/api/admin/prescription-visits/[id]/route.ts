@@ -1,4 +1,5 @@
-﻿import { NextResponse } from "next/server";
+import { assertSameOrigin } from "@/lib/request-guard";
+import { NextResponse } from "next/server";
 import { hasPortalRole } from "@/lib/portal-auth";
 import {
   cancelPrescriptionVisit,
@@ -33,6 +34,12 @@ export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
+  const originCheck = assertSameOrigin(request);
+
+  if (!originCheck.ok) {
+    return originCheck.response;
+  }
+
   const allowed = await hasPortalRole("admin");
 
   if (!allowed) {
