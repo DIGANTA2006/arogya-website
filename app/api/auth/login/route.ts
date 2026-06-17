@@ -1,5 +1,9 @@
 ﻿import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
+import {
+  createAdmin2faChallenge,
+  sendAdmin2faEmail,
+} from "@/lib/admin-2fa-store";
 import { createPortalToken } from "@/lib/portal-auth";
 import {
   findPatientByEmail,
@@ -85,19 +89,36 @@ export async function POST(request: Request) {
       const isAdminPassword = await verifyAdminPassword(password);
 
       if (!isAdminEmail || !isAdminPassword) {
-        return NextResponse.json({ error: "Invalid admin login details." }, { status: 401 });
+        return NextResponse.json(
+          { error: "Invalid admin login details." },
+          { status: 401 }
+        );
       }
 
-      const token = await createPortalToken("admin", email);
-      const response = NextResponse.json({ success: true, role: "admin" });
+      const challenge = await createAdmin2faChallenge({
+        adminEmail: email,
+        ipAddress: ip,
+        userAgent: request.headers.get("user-agent") || "",
+      });
 
-      return setPortalCookies(
-        response,
-        "admin",
-        token,
-        email,
-        "Clinic Admin"
-      );
+      const sent = await sendAdmin2faEmail({
+        to: email,
+        code: challenge.code,
+      });
+
+      if (!sent) {
+        return NextResponse.json(
+          { error: "Could not send admin verification email." },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        role: "admin",
+        requiresTwoFactor: true,
+        challengeId: challenge.challengeId,
+      });
     }
 
     const patient = await findPatientByEmail(email);
@@ -119,15 +140,18 @@ export async function POST(request: Request) {
     const passwordOk = await verifyPassword(password, patient.passwordHash);
 
     if (!passwordOk) {
-      return NextResponse.json({ error: "Invalid patient login details." }, { status: 401 });
+      return NextResponse.json(
+        { error: "Invalid patient login details." },
+        { status: 401 }
+      );
     }
 
     if (isLegacyPasswordHash(patient.passwordHash)) {
-      await updatePatientPasswordHash(patient.email, await hashPassword(password));
+      await updatePatientPasswordHash(
+        patient.email,
+        await hashPassword(password)
+      );
     }
-
-    // Mobile OTP verification is temporarily not required for login until SMS provider is configured.
-
 
     const token = await createPortalToken("client", patient.email);
     const response = NextResponse.json({ success: true, role: "client" });
@@ -139,7 +163,7 @@ export async function POST(request: Request) {
       patient.email,
       patient.name
     );
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: "Login failed." }, { status: 500 });
   }
 }

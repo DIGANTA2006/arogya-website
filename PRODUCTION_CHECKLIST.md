@@ -76,10 +76,17 @@ Confirmed in Vercel Production:
 
 ## Known Future Enhancements
 
-- Admin two-factor authentication
+- [x] Admin two-factor authentication with email OTP
 - Admin audit logs for sensitive actions
 - Automatic Razorpay/PhonePe payment gateway
 - Appointment confirmation SMS through DLT-compliant SMS provider
 - WhatsApp reminder automation
 - Doctor-specific dashboard
 - Advanced analytics
+## Admin 2FA
+
+- [x] Admin login requires password first
+- [x] Admin login then requires email OTP
+- [x] OTP challenge expires after 10 minutes
+- [x] OTP challenge is stored hashed
+- [x] Admin dashboard cookies are issued only after OTP verification
