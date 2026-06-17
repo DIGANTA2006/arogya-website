@@ -261,6 +261,10 @@ export default function ClientPaymentPage() {
                 On desktop, scan the QR using any mobile UPI app. On mobile, use
                 “Open UPI App”.
               </p>
+
+              <div className="message-box">
+                <strong>Manual verification:</strong> UPI payments are manually verified by the clinic. Submitting a reference number or screenshot does not automatically mark the payment as paid. The clinic will update payment status after confirming the transaction.
+              </div>
             </>
           ) : (
             <div className="message-box">
