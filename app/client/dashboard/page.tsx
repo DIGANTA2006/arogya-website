@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
@@ -77,13 +77,8 @@ function isOnlineAppointmentType(value?: string) {
   );
 }
 
-function buildOnlineMeetingLink(appointmentId?: string) {
-  const safeId =
-    String(appointmentId || "")
-      .replace(/[^a-zA-Z0-9]/g, "")
-      .slice(0, 48) || "session";
-
-  return `https://meet.jit.si/ArogyaSpeechTherapy-${safeId}`;
+function buildMeetingGateUrl(appointmentId?: string) {
+  return appointmentId ? `/api/meeting/${encodeURIComponent(appointmentId)}` : "";
 }
 
 export default function ClientDashboardPage() {
@@ -401,7 +396,7 @@ export default function ClientDashboardPage() {
                   String(appointment.status || "").toLowerCase() === "completed";
                 const meetingLink =
                   isOnlineAppointment && appointmentId
-                    ? buildOnlineMeetingLink(appointmentId)
+                    ? buildMeetingGateUrl(appointmentId)
                     : "";
                 const payment = appointmentId ? paymentByAppointment.get(appointmentId) : undefined;
                 const paymentStatus = isOnlineAppointment

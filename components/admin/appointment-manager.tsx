@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useEffect, useMemo, useState } from 'react'
 
@@ -52,13 +52,8 @@ function isOnlineAppointmentType(value: string) {
   )
 }
 
-function buildOnlineMeetingLink(appointmentId?: string) {
-  const safeId =
-    String(appointmentId || "")
-      .replace(/[^a-zA-Z0-9]/g, "")
-      .slice(0, 48) || "session"
-
-  return `https://meet.jit.si/ArogyaSpeechTherapy-${safeId}`
+function buildMeetingGateUrl(appointmentId?: string) {
+  return appointmentId ? `/api/meeting/${encodeURIComponent(appointmentId)}` : ""
 }
 
 function paymentStatusClass(status?: PaymentStatus) {
@@ -145,12 +140,15 @@ export default function AppointmentManager() {
     const isOnline = isOnlineAppointmentType(appointment.appointmentType)
     const payment = paymentByAppointment.get(appointment.id)
 
-    if (isOnline && status === 'Completed' && payment?.status !== 'paid') {
-      const confirmed = window.confirm(
-        'This online consultation payment is not marked Paid yet. Continue marking appointment as Completed?'
+    if (
+      isOnline &&
+      (status === 'Confirmed' || status === 'Completed') &&
+      payment?.status !== 'paid'
+    ) {
+      setStatusMessage(
+        'Online consultation can be confirmed or completed only after payment is marked Paid.'
       )
-
-      if (!confirmed) return
+      return
     }
 
     const response = await fetch('/api/admin/appointments', {
@@ -242,7 +240,7 @@ export default function AppointmentManager() {
               <tbody>
                 {filteredAppointments.map((appointment) => {
                   const isOnline = isOnlineAppointmentType(appointment.appointmentType)
-                  const meetingLink = isOnline ? buildOnlineMeetingLink(appointment.id) : ""
+                  const meetingLink = isOnline ? buildMeetingGateUrl(appointment.id) : ""
                   const payment = paymentByAppointment.get(appointment.id)
 
                   return (
@@ -266,14 +264,20 @@ export default function AppointmentManager() {
                             <a href="/admin/payments" className="mt-2 block text-xs font-bold text-primary">
                               Verify Payment
                             </a>
-                            <a
-                              href={meetingLink}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="mt-1 block text-xs font-bold text-slate-900"
-                            >
-                              Open Meeting
-                            </a>
+                            {payment?.status === 'paid' ? (
+                              <a
+                                href={meetingLink}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="mt-1 block text-xs font-bold text-slate-900"
+                              >
+                                Open Meeting
+                              </a>
+                            ) : (
+                              <span className="mt-1 block text-xs font-bold text-slate-500">
+                                Meeting locked until paid
+                              </span>
+                            )}
                           </div>
                         ) : (
                           <span className="inline-flex rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">

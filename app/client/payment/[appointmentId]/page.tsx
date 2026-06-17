@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
@@ -54,10 +54,12 @@ function isOnlineAppointmentType(value: unknown) {
 export default function ClientPaymentPage() {
   const params = useParams<{ appointmentId: string }>();
   const appointmentId = params.appointmentId;
+  const onlineFee =
+    Number(process.env.NEXT_PUBLIC_ONLINE_CONSULTATION_FEE || "500") || 500;
 
   const [payment, setPayment] = useState<PaymentSummary | null>(null);
   const [appointment, setAppointment] = useState<AppointmentSummary | null>(null);
-  const [amount, setAmount] = useState("");
+  const [amount, setAmount] = useState(String(onlineFee));
   const [transactionRef, setTransactionRef] = useState("");
   const [proof, setProof] = useState<File | null>(null);
   const [loading, setLoading] = useState(true);
@@ -140,9 +142,7 @@ export default function ClientPaymentPage() {
 
       setPayment(found || null);
 
-      if (found?.amount) {
-        setAmount(String(found.amount));
-      }
+      setAmount(found?.amount ? String(found.amount) : String(onlineFee));
 
       if (found?.transactionRef || found?.transaction_ref) {
         setTransactionRef(found.transactionRef || found.transaction_ref || "");
@@ -300,17 +300,18 @@ export default function ClientPaymentPage() {
           ) : (
             <form onSubmit={submitPayment} className="payment-form">
               <label>
-                Amount Paid
+                Fixed Online Consultation Fee
                 <input
                   type="number"
-                  min="1"
-                  step="1"
                   value={amount}
-                  onChange={(event) => setAmount(event.target.value)}
-                  placeholder="Example: 500"
-                  disabled={isPaid}
+                  readOnly
+                  disabled
                 />
               </label>
+
+              <p className="hint">
+                This amount is controlled by the clinic system. Patient cannot change the consultation fee.
+              </p>
 
               <label>
                 UPI Transaction / Reference Number

@@ -162,8 +162,9 @@ export async function POST(request: Request) {
       rxNumber: prescriptionVisit ? prescriptionVisit.rxNumber : null,
       meetingLink: null,
       requiresOnlinePayment,
-      message:
-        "Appointment booked successfully. Confirmation email has been sent.",
+      message: requiresOnlinePayment
+        ? "Online appointment booked. Please complete UPI payment from your dashboard. Meeting access opens after clinic payment verification."
+        : "Appointment booked successfully. Confirmation email has been sent.",
     });
   } catch (error) {
     return NextResponse.json(

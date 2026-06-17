@@ -1,7 +1,11 @@
-﻿import { assertSameOrigin } from "@/lib/request-guard";
+import { assertSameOrigin } from "@/lib/request-guard";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { getAppointments } from "@/lib/appointment-store";
+import {
+  getOnlineConsultationFee,
+  isOnlineAppointmentType,
+} from "@/lib/consultation-flow";
 import { hasPortalRole } from "@/lib/portal-auth";
 import {
   formatPaymentForClient,
@@ -17,16 +21,6 @@ function clean(value: unknown) {
 
 function cleanEmail(value: unknown) {
   return clean(value).toLowerCase();
-}
-
-function isOnlineAppointmentType(value: unknown) {
-  const text = clean(value).toLowerCase();
-
-  return (
-    text.includes("online") ||
-    text.includes("video") ||
-    text.includes("meet")
-  );
 }
 
 function getPaymentSetupError(error: unknown) {
@@ -71,6 +65,7 @@ export async function GET() {
 
     return NextResponse.json({
       payments: payments.map(formatPaymentForClient),
+      onlineConsultationFee: getOnlineConsultationFee(),
     });
   } catch (error) {
     const setupError = getPaymentSetupError(error);
@@ -103,7 +98,6 @@ export async function POST(request: Request) {
     const formData = await request.formData();
 
     const appointmentId = clean(formData.get("appointmentId"));
-    const amountRaw = clean(formData.get("amount"));
     const transactionRef = clean(formData.get("transactionRef"));
     const proofEntry = formData.get("proof");
 
@@ -112,21 +106,6 @@ export async function POST(request: Request) {
         { error: "Appointment ID is required." },
         { status: 400 }
       );
-    }
-
-    let amount: number | null = null;
-
-    if (amountRaw) {
-      const parsed = Number(amountRaw);
-
-      if (!Number.isFinite(parsed) || parsed <= 0) {
-        return NextResponse.json(
-          { error: "Enter a valid payment amount." },
-          { status: 400 }
-        );
-      }
-
-      amount = parsed;
     }
 
     const appointments = await getAppointments();
@@ -162,7 +141,7 @@ export async function POST(request: Request) {
       patientEmail: session.email,
       patientName: appointment.name || session.name,
       patientMobile: appointment.phone || "",
-      amount,
+      amount: getOnlineConsultationFee(),
       transactionRef,
       proofFile,
     });
@@ -170,7 +149,9 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       payment: formatPaymentForClient(payment),
-      message: "Payment details submitted. Clinic will verify and mark as paid.",
+      onlineConsultationFee: getOnlineConsultationFee(),
+      message:
+        "Payment details submitted. The clinic will verify it and unlock the online meeting.",
     });
   } catch (error) {
     const setupError = getPaymentSetupError(error);

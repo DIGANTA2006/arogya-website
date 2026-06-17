@@ -1,4 +1,5 @@
-﻿import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import { updateAppointmentStatus } from "@/lib/appointment-store";
 
 export type PaymentStatus = "pending" | "submitted" | "paid" | "rejected";
 
@@ -348,5 +349,15 @@ export async function updatePaymentStatus(input: {
     throw new Error(error?.message || "Payment status update failed.");
   }
 
-  return mapRow(data);
+  const payment = mapRow(data);
+
+  if (payment.status === "paid") {
+    try {
+      await updateAppointmentStatus(payment.appointmentId, "Confirmed");
+    } catch (error) {
+      console.error("[payment-store] Could not auto-confirm paid appointment.", error);
+    }
+  }
+
+  return payment;
 }
