@@ -1,8 +1,8 @@
 import { MapPin, Phone, Clock, Mail } from "lucide-react"
 
 const workingHours = [
-  { day: "Monday – Saturday", time: "11:00 AM – 8:00 PM" },
-  { day: "Sunday", time: "By Appointment Only" },
+  { day: "Monday – Saturday", time: "2:00 PM – 6:00 PM" },
+  { day: "Sunday", time: "Closed" },
 ]
 
 export default function ContactSection() {

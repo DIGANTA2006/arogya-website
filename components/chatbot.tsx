@@ -28,7 +28,7 @@ function getBotAnswer(question: string) {
   }
 
   if (text.includes("time") || text.includes("timing") || text.includes("open")) {
-    return "Clinic timing is Monday to Saturday, 11:00 AM to 8:00 PM. Please confirm by call or WhatsApp before visiting.";
+    return "Clinic timing is Monday to Saturday, 2:00 PM to 6:00 PM. Sunday is closed. Please confirm by call or WhatsApp before visiting.";
   }
 
   if (text.includes("fee") || text.includes("price") || text.includes("cost")) {

@@ -117,7 +117,7 @@ export default async function PrintPrescriptionVisitPage({ params }: PageProps) 
                 Opposite Devi ka Bagh, near Dagar Gaire, Sanchi Road, Vidisha 464001
               </p>
               <p className="text-[11px] font-bold text-slate-800">
-                Timing: Monday – Saturday, 11:00 AM – 8:00 PM
+                Timing: Monday – Saturday, 2:00 PM – 6:00 PM
               </p>
             </div>
 

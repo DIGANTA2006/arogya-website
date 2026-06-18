@@ -96,7 +96,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const slotValidation = await validateAppointmentSlot(date, time);
+    const slotValidation = await validateAppointmentSlot(date, time, appointmentType);
 
     if (!slotValidation.ok || !slotValidation.date || !slotValidation.time) {
       return NextResponse.json(

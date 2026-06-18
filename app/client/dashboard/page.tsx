@@ -115,6 +115,19 @@ function isMeetingWindowOpen(appointment: Appointment) {
 
   return now >= openAt && now <= closeAt;
 }
+function formatSlotLabel(time: string) {
+  const [hourText, minuteText] = time.split(":");
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+  const date = new Date(2020, 0, 1, hour, minute);
+
+  return date.toLocaleTimeString("en-IN", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
 function buildMeetingGateUrl(appointmentId?: string) {
   return appointmentId ? `/api/meeting/${encodeURIComponent(appointmentId)}` : "";
 }
@@ -126,6 +139,9 @@ export default function ClientDashboardPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
+  const [availableSlots, setAvailableSlots] = useState<string[]>([]);
+  const [slotLoading, setSlotLoading] = useState(false);
+  const [slotMessage, setSlotMessage] = useState("");
 
   const [form, setForm] = useState({
     service: "Speech Therapy Consultation",
@@ -211,6 +227,62 @@ export default function ClientDashboardPage() {
     loadPrescriptions();
     loadPayments();
   }, []);
+  useEffect(() => {
+    async function loadAvailableSlots() {
+      if (!form.date) {
+        setAvailableSlots([]);
+        setSlotMessage("Select a date to view available 1-hour slots.");
+        return;
+      }
+
+      try {
+        setSlotLoading(true);
+        setSlotMessage("");
+
+        const params = new URLSearchParams({
+          date: form.date,
+          appointmentType: form.appointmentType,
+        });
+
+        const response = await fetch(`/api/appointment/available-slots?${params.toString()}`, {
+          cache: "no-store",
+        });
+
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          setAvailableSlots([]);
+          setSlotMessage(data.error || "Could not load available slots.");
+          setForm((previous) => ({ ...previous, time: "" }));
+          return;
+        }
+
+        const slots = Array.isArray(data.slots) ? data.slots : [];
+        setAvailableSlots(slots);
+
+        setForm((previous) => {
+          if (previous.time && !slots.includes(previous.time)) {
+            return { ...previous, time: "" };
+          }
+
+          return previous;
+        });
+
+        setSlotMessage(
+          slots.length
+            ? "Available 1-hour doctor slots loaded."
+            : "No available slots for this date. Please choose another date."
+        );
+      } catch {
+        setAvailableSlots([]);
+        setSlotMessage("Could not load available slots.");
+      } finally {
+        setSlotLoading(false);
+      }
+    }
+
+    loadAvailableSlots();
+  }, [form.date, form.appointmentType]);
 
   async function bookAppointment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -358,7 +430,31 @@ export default function ClientDashboardPage() {
 
               <label>
                 Time
-                <input name="time" type="time" value={form.time} onChange={updateField} required />
+                <select
+                  name="time"
+                  value={form.time}
+                  onChange={updateField}
+                  required
+                  disabled={!form.date || slotLoading || availableSlots.length === 0}
+                >
+                  <option value="">
+                    {slotLoading
+                      ? "Loading slots..."
+                      : form.date
+                        ? "Choose available 1-hour slot"
+                        : "Select date first"}
+                  </option>
+                  {availableSlots.map((slot) => (
+                    <option key={slot} value={slot}>
+                      {formatSlotLabel(slot)}
+                    </option>
+                  ))}
+                </select>
+                {slotMessage && (
+                  <small className="text-xs font-bold text-slate-500">
+                    {slotMessage}
+                  </small>
+                )}
               </label>
             </div>
 

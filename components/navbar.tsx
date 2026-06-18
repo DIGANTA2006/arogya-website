@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { Clock, MapPin, Menu, Phone, X } from "lucide-react";
@@ -45,7 +45,7 @@ export default function Navbar() {
               <MapPin size={14} /> Sanchi Road, Vidisha, M.P.
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <Clock size={14} /> Mon-Sat: 11:00 AM - 8:00 PM
+              <Clock size={14} /> Mon-Sat: 2:00 PM - 6:00 PM
             </span>
           </div>
 

@@ -1,24 +1,12 @@
-﻿import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
+
+export const APPOINTMENT_SLOT_DURATION_MINUTES = 60;
 
 export const APPOINTMENT_SLOT_TIMES = [
-  "11:00",
-  "11:30",
-  "12:00",
-  "12:30",
-  "13:00",
-  "13:30",
   "14:00",
-  "14:30",
   "15:00",
-  "15:30",
   "16:00",
-  "16:30",
   "17:00",
-  "17:30",
-  "18:00",
-  "18:30",
-  "19:00",
-  "19:30",
 ];
 
 type SlotValidation = {
@@ -58,6 +46,42 @@ export function normalizeTime(value: string) {
   return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 
+function timeToMinutes(time: string) {
+  const normalized = normalizeTime(time);
+
+  if (!normalized) return null;
+
+  const [hourText, minuteText] = normalized.split(":");
+  return Number(hourText) * 60 + Number(minuteText);
+}
+
+function slotsOverlap(first: string, second: string) {
+  const firstStart = timeToMinutes(first);
+  const secondStart = timeToMinutes(second);
+
+  if (firstStart === null || secondStart === null) return false;
+
+  const firstEnd = firstStart + APPOINTMENT_SLOT_DURATION_MINUTES;
+  const secondEnd = secondStart + APPOINTMENT_SLOT_DURATION_MINUTES;
+
+  return firstStart < secondEnd && secondStart < firstEnd;
+}
+
+export function isOnlineAppointmentType(value: unknown) {
+  const text = String(value || "").trim().toLowerCase();
+
+  return (
+    text.includes("online") ||
+    text.includes("video") ||
+    text.includes("meet")
+  );
+}
+
+export function getAppointmentSlotTimes(_appointmentType?: string) {
+  // One doctor calendar: online and physical appointments share the same slot pool.
+  return APPOINTMENT_SLOT_TIMES;
+}
+
 export function validateAppointmentDate(dateValue: string): SlotValidation {
   const date = String(dateValue || "").trim();
 
@@ -92,7 +116,11 @@ export function validateAppointmentDate(dateValue: string): SlotValidation {
   };
 }
 
-export function validateClinicSlot(dateValue: string, timeValue: string): SlotValidation {
+export function validateClinicSlot(
+  dateValue: string,
+  timeValue: string,
+  appointmentType = "Clinic Visit"
+): SlotValidation {
   const dateValidation = validateAppointmentDate(dateValue);
 
   if (!dateValidation.ok) {
@@ -113,21 +141,23 @@ export function validateClinicSlot(dateValue: string, timeValue: string): SlotVa
   const minute = Number(minuteText);
   const minutes = hour * 60 + minute;
 
-  if (minute !== 0 && minute !== 30) {
+  if (minute !== 0) {
     return {
       ok: false,
-      error: "Please choose a 30-minute appointment slot, for example 11:00 or 11:30.",
+      error: "Please choose a 1-hour appointment slot, for example 2:00 PM or 3:00 PM.",
     };
   }
 
-  if (minutes < 11 * 60 || minutes > 19 * 60 + 30) {
+  if (minutes < 14 * 60 || minutes >= 18 * 60) {
     return {
       ok: false,
-      error: "Appointment time must be between 11:00 AM and 8:00 PM.",
+      error: "Appointment time must be between 2:00 PM and 6:00 PM.",
     };
   }
 
-  if (!APPOINTMENT_SLOT_TIMES.includes(time)) {
+  const allowedSlots = getAppointmentSlotTimes(appointmentType);
+
+  if (!allowedSlots.includes(time)) {
     return {
       ok: false,
       error: "This appointment time is not available.",
@@ -146,20 +176,27 @@ export async function isAppointmentSlotTaken(date: string, time: string) {
 
   const { data, error } = await supabase
     .from("appointments")
-    .select("id")
-    .eq("appointment_date", date)
-    .eq("appointment_time", time)
-    .limit(1);
+    .select("id,appointment_time,status")
+    .eq("appointment_date", date);
 
   if (error) {
     throw new Error(error.message);
   }
 
-  return Boolean(data && data.length > 0);
+  return Boolean(
+    (data || []).some((row: { appointment_time?: string; time?: string; status?: string }) => {
+      if (String(row.status || "").toLowerCase() === "cancelled") return false;
+      return slotsOverlap(time, row.appointment_time || row.time || "");
+    })
+  );
 }
 
-export async function validateAppointmentSlot(dateValue: string, timeValue: string) {
-  const validation = validateClinicSlot(dateValue, timeValue);
+export async function validateAppointmentSlot(
+  dateValue: string,
+  timeValue: string,
+  appointmentType = "Clinic Visit"
+) {
+  const validation = validateClinicSlot(dateValue, timeValue, appointmentType);
 
   if (!validation.ok || !validation.date || !validation.time) {
     return validation;
@@ -170,14 +207,15 @@ export async function validateAppointmentSlot(dateValue: string, timeValue: stri
   if (taken) {
     return {
       ok: false,
-      error: "This appointment slot is already booked. Please choose another time.",
+      error:
+        "This 1-hour doctor slot is already booked. Please choose another time.",
     };
   }
 
   return validation;
 }
 
-export async function getAvailableSlots(dateValue: string) {
+export async function getAvailableSlots(dateValue: string, appointmentType = "Clinic Visit") {
   const dateValidation = validateAppointmentDate(dateValue);
 
   if (!dateValidation.ok || !dateValidation.date) {
@@ -185,6 +223,7 @@ export async function getAvailableSlots(dateValue: string) {
       ok: false,
       error: dateValidation.error || "Invalid date.",
       slots: [] as string[],
+      slotDurationMinutes: APPOINTMENT_SLOT_DURATION_MINUTES,
     };
   }
 
@@ -192,26 +231,31 @@ export async function getAvailableSlots(dateValue: string) {
 
   const { data, error } = await supabase
     .from("appointments")
-    .select("appointment_time")
+    .select("appointment_time,status")
     .eq("appointment_date", dateValidation.date);
 
   if (error) {
     throw new Error(error.message);
   }
 
-  const booked = new Set(
-    (data || [])
-      .map((row: { appointment_time?: string; time?: string }) =>
-        normalizeTime(row.appointment_time || row.time || "")
-      )
-      .filter(Boolean)
-  );
+  const activeBookedTimes = (data || [])
+    .filter((row: { appointment_time?: string; time?: string; status?: string }) => {
+      return String(row.status || "").toLowerCase() !== "cancelled";
+    })
+    .map((row: { appointment_time?: string; time?: string }) =>
+      normalizeTime(row.appointment_time || row.time || "")
+    )
+    .filter(Boolean);
 
-  const slots = APPOINTMENT_SLOT_TIMES.filter((slot) => !booked.has(slot));
+  const slots = getAppointmentSlotTimes(appointmentType).filter((slot) => {
+    return !activeBookedTimes.some((bookedTime) => slotsOverlap(slot, bookedTime));
+  });
 
   return {
     ok: true,
     date: dateValidation.date,
+    appointmentType,
+    slotDurationMinutes: APPOINTMENT_SLOT_DURATION_MINUTES,
     slots,
   };
 }
