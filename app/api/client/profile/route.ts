@@ -1,4 +1,4 @@
-﻿import { assertSameOrigin } from "@/lib/request-guard";
+import { assertSameOrigin } from "@/lib/request-guard";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { escapeHtml } from "@/lib/html";
@@ -49,10 +49,9 @@ async function sendDeletionRequestEmail(input: {
 }) {
   const resendApiKey = process.env.RESEND_API_KEY;
   const appointmentEmail = process.env.APPOINTMENT_EMAIL;
-  const fromEmail =
-    process.env.RESEND_FROM_EMAIL || "Arogya Clinic <onboarding@resend.dev>";
+  const fromEmail = process.env.RESEND_FROM_EMAIL;
 
-  if (!resendApiKey || !appointmentEmail) {
+  if (!resendApiKey || !appointmentEmail || !fromEmail) {
     return false;
   }
 
@@ -95,7 +94,7 @@ export async function GET() {
 
     const { data, error } = await supabase
       .from("patients")
-      .select("name,email,phone,age,mobile_verified")
+      .select("name,email,phone,age,mobile_verified,email_verified")
       .eq("email", session.email)
       .maybeSingle();
 
@@ -111,6 +110,7 @@ export async function GET() {
           phone: "",
           age: "",
           mobileVerified: false,
+        emailVerified: false,
         },
       });
     }
@@ -152,7 +152,7 @@ export async function PATCH(request: Request) {
 
     const { data: existing, error: lookupError } = await supabase
       .from("patients")
-      .select("id")
+      .select("id,phone,mobile_verified,email_verified")
       .eq("email", session.email)
       .maybeSingle();
 
@@ -169,7 +169,7 @@ export async function PATCH(request: Request) {
           phone,
         })
         .eq("email", session.email)
-        .select("name,email,phone,age,mobile_verified")
+        .select("name,email,phone,age,mobile_verified,email_verified")
         .single();
 
       if (error) {
@@ -189,7 +189,7 @@ export async function PATCH(request: Request) {
         password_hash: null,
         mobile_verified: true,
       })
-      .select("name,email,phone,age,mobile_verified")
+      .select("name,email,phone,age,mobile_verified,email_verified")
       .single();
 
     if (error) {

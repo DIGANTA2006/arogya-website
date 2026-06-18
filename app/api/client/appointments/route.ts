@@ -8,6 +8,7 @@ import {
 import { addAppointment, getAppointments } from "@/lib/appointment-store";
 import { sendAppointmentEmails } from "@/lib/appointment-email";
 
+import { requireVerifiedPatientEmail } from "@/lib/email-verification";
 import { findPatientByEmail } from "@/lib/patient-store";
 import { createPrescriptionVisit } from "@/lib/prescription-visit-store";
 import { hasPortalRole } from "@/lib/portal-auth";
@@ -70,7 +71,19 @@ export async function POST(request: Request) {
       );
     }
 
-    const patient = await findPatientByEmail(email);
+    const verifiedEmail = await requireVerifiedPatientEmail(email);
+
+    if (!verifiedEmail.ok) {
+      return NextResponse.json(
+        {
+          error: verifiedEmail.error,
+          requiresEmailVerification: true,
+        },
+        { status: 403 }
+      );
+    }
+
+    const patient = verifiedEmail.patient || (await findPatientByEmail(email));
 
     if (patient && !patient.mobileVerified) {
       return NextResponse.json(

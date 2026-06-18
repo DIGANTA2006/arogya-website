@@ -2,6 +2,7 @@ import { assertSameOrigin } from "@/lib/request-guard";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { getAppointments } from "@/lib/appointment-store";
+import { requireVerifiedPatientEmail } from "@/lib/email-verification";
 import {
   getOnlineConsultationFee,
   isOnlineAppointmentType,
@@ -93,6 +94,18 @@ export async function POST(request: Request) {
 
     if (!session.allowed || !session.email) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+    }
+
+    const verifiedEmail = await requireVerifiedPatientEmail(session.email);
+
+    if (!verifiedEmail.ok) {
+      return NextResponse.json(
+        {
+          error: verifiedEmail.error,
+          requiresEmailVerification: true,
+        },
+        { status: 403 }
+      );
     }
 
     const formData = await request.formData();

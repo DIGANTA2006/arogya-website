@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 
@@ -8,6 +8,7 @@ type Profile = {
   phone: string;
   age: string;
   mobileVerified: boolean;
+  emailVerified: boolean;
 };
 
 export default function ClientProfilePage() {
@@ -17,6 +18,7 @@ export default function ClientProfilePage() {
     phone: "",
     age: "",
     mobileVerified: false,
+  emailVerified: false,
   });
 
   const [otp, setOtp] = useState("");
@@ -133,6 +135,26 @@ export default function ClientProfilePage() {
     setStatus("Mobile number verified successfully.");
   }
 
+  async function resendEmailVerification() {
+    setStatus("Sending verification email...");
+
+    const response = await fetch("/api/auth/resend-email-verification", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email: profile.email }),
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      setStatus(data.error || "Could not send verification email.");
+      return;
+    }
+
+    setStatus(data.message || "Verification email sent.");
+  }
   async function saveProfile(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setStatus("");

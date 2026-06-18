@@ -1,4 +1,4 @@
-﻿import bcrypt from "bcryptjs";
+import bcrypt from "bcryptjs";
 import { createHash } from "crypto";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
@@ -10,6 +10,7 @@ export type Patient = {
   email: string;
   passwordHash: string;
   mobileVerified: boolean;
+  emailVerified: boolean;
   createdAt: string;
 };
 
@@ -62,6 +63,7 @@ function mapSupabasePatient(row: any): Patient {
     email: row.email,
     passwordHash: row.password_hash || "",
     mobileVerified: Boolean(row.mobile_verified),
+    emailVerified: Boolean(row.email_verified),
     createdAt: row.created_at,
   };
 }
