@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import jsQR from "jsqr";
@@ -399,7 +399,7 @@ export default function ScannerUploadPanel() {
     setStatus("Manual token applied to files without QR token.");
   }
 
-  async function uploadOne(item: ScanItem) {
+  async function uploadOne(item: ScanItem, forceReplace = false) {
     const token = extractToken(item.token);
 
     if (!token) {
@@ -419,6 +419,10 @@ export default function ScannerUploadPanel() {
     form.set("uploadToken", token);
     form.set("file", item.file);
 
+    if (forceReplace) {
+      form.set("forceReplace", "true");
+    }
+
     if (nextTherapyDate) {
       form.set("nextTherapyDate", nextTherapyDate);
     }
@@ -435,6 +439,17 @@ export default function ScannerUploadPanel() {
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
+      if (response.status === 409 && data.requiresConfirmation) {
+        const confirmed = window.confirm(
+          data.error || "A prescription is already uploaded for this RX. Replace it?"
+        );
+
+        if (confirmed) {
+          await uploadOne(item, true);
+          return;
+        }
+      }
+
       updateItem(item.id, {
         status: "error",
         message: data.detail || data.error || "Upload failed.",

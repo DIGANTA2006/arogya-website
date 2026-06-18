@@ -1,5 +1,9 @@
 import { redirect } from "next/navigation";
 import { getPrescriptionVisitByToken } from "@/lib/prescription-visit-store";
+import {
+  getPrescriptionVisitExpiryMessage,
+  isPrescriptionVisitUploadExpired,
+} from "@/lib/rx-reliability";
 
 function statusText(status: string) {
   if (status === "uploaded") return "Prescription uploaded";
@@ -36,6 +40,23 @@ export default async function RxTokenPage({
 
   if (visit.uploadedPrescriptionToken) {
     redirect(`/prescription/${visit.uploadedPrescriptionToken}`);
+  }
+  if (isPrescriptionVisitUploadExpired(visit)) {
+    return (
+      <main className="grid min-h-screen place-items-center bg-secondary/40 p-6">
+        <div className="w-full max-w-xl rounded-[2rem] border border-border bg-white p-8 text-center shadow-sm">
+          <span className="rounded-full bg-yellow-50 px-4 py-1 text-xs font-bold uppercase tracking-widest text-yellow-700">
+            Expired QR
+          </span>
+          <h1 className="mt-5 text-3xl font-extrabold text-foreground">
+            Prescription QR expired
+          </h1>
+          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+            {getPrescriptionVisitExpiryMessage(visit)}
+          </p>
+        </div>
+      </main>
+    );
   }
 
   return (

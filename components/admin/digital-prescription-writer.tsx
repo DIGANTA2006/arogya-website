@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useRef, useState } from "react";
 
@@ -142,7 +142,7 @@ export default function DigitalPrescriptionWriter({ visit }: Props) {
     drawTemplate();
   }
 
-  async function savePrescription() {
+  async function savePrescription(forceReplace = false) {
     const canvas = canvasRef.current;
 
     if (!canvas) return;
@@ -161,6 +161,7 @@ export default function DigitalPrescriptionWriter({ visit }: Props) {
           imageData: canvas.toDataURL("image/png"),
           nextTherapyDate,
           nextAppointmentDate,
+          forceReplace,
         }),
       }
     );
@@ -170,6 +171,17 @@ export default function DigitalPrescriptionWriter({ visit }: Props) {
     setSaving(false);
 
     if (!response.ok) {
+      if (response.status === 409 && data.requiresConfirmation) {
+        const confirmed = window.confirm(
+          data.error || "A prescription is already uploaded for this RX. Replace it?"
+        );
+
+        if (confirmed) {
+          await savePrescription(true);
+          return;
+        }
+      }
+
       setStatus(data.detail || data.error || "Digital prescription could not be saved.");
       return;
     }
@@ -215,7 +227,7 @@ export default function DigitalPrescriptionWriter({ visit }: Props) {
 
             <button
               type="button"
-              onClick={savePrescription}
+              onClick={() => savePrescription()}
               disabled={saving}
               className="rounded-full bg-primary px-5 py-3 text-sm font-extrabold text-primary-foreground disabled:opacity-60"
             >

@@ -1,4 +1,4 @@
-﻿import { assertSameOrigin } from "@/lib/request-guard";
+import { assertSameOrigin } from "@/lib/request-guard";
 import { NextResponse } from "next/server";
 import { hasPortalRole } from "@/lib/portal-auth";
 import { createPrescription } from "@/lib/prescription-store";
@@ -6,6 +6,10 @@ import {
   getPrescriptionVisitByToken,
   markPrescriptionVisitUploaded,
 } from "@/lib/prescription-visit-store";
+import {
+  getPrescriptionVisitExpiryMessage,
+  isPrescriptionVisitUploadExpired,
+} from "@/lib/rx-reliability";
 
 const MAX_UPLOAD_SIZE_BYTES = 20 * 1024 * 1024;
 
@@ -75,6 +79,7 @@ export async function POST(request: Request) {
     );
 
     const submittedTitle = clean(formData.get("title"));
+    const forceReplace = clean(formData.get("forceReplace")) === "true";
     const nextTherapyDate = clean(formData.get("nextTherapyDate"));
     const nextAppointmentDate = clean(formData.get("nextAppointmentDate"));
     const file = formData.get("file");
@@ -119,6 +124,23 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: "This prescription visit was cancelled." },
         { status: 400 }
+      );
+    }
+    if (isPrescriptionVisitUploadExpired(visit)) {
+      return NextResponse.json(
+        { error: getPrescriptionVisitExpiryMessage(visit) },
+        { status: 400 }
+      );
+    }
+
+    if (visit.uploadedPrescriptionId && !forceReplace) {
+      return NextResponse.json(
+        {
+          error:
+            "A prescription is already uploaded for this RX. Confirm replacement before uploading again.",
+          requiresConfirmation: true,
+        },
+        { status: 409 }
       );
     }
 

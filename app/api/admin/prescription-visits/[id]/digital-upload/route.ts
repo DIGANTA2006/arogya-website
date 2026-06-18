@@ -6,11 +6,16 @@ import {
   getPrescriptionVisitById,
   markPrescriptionVisitUploaded,
 } from "@/lib/prescription-visit-store";
+import {
+  getPrescriptionVisitExpiryMessage,
+  isPrescriptionVisitUploadExpired,
+} from "@/lib/rx-reliability";
 
 type Body = {
   imageData?: string;
   nextTherapyDate?: string;
   nextAppointmentDate?: string;
+  forceReplace?: boolean;
 };
 
 function clean(value?: string) {
@@ -64,6 +69,23 @@ export async function POST(
       return NextResponse.json(
         { error: "This prescription visit was cancelled." },
         { status: 400 }
+      );
+    }
+    if (isPrescriptionVisitUploadExpired(visit)) {
+      return NextResponse.json(
+        { error: getPrescriptionVisitExpiryMessage(visit) },
+        { status: 400 }
+      );
+    }
+
+    if (visit.uploadedPrescriptionId && !body.forceReplace) {
+      return NextResponse.json(
+        {
+          error:
+            "A prescription is already uploaded for this RX. Confirm replacement before saving again.",
+          requiresConfirmation: true,
+        },
+        { status: 409 }
       );
     }
 

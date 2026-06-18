@@ -1,4 +1,4 @@
-﻿import { mkdir, readFile, writeFile } from "fs/promises";
+import { mkdir, readFile, writeFile } from "fs/promises";
 import { join } from "path";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
@@ -164,8 +164,23 @@ export async function getPrescriptionVisitByToken(token: string) {
   return visits.find((visit) => visit.uploadToken === uploadToken);
 }
 
-async function generateRxNumber() {
+async function generateRxNumber(supabase?: any) {
   const year = new Date().getFullYear();
+
+  if (supabase) {
+    try {
+      const { data, error } = await supabase.rpc("next_rx_number", {
+        target_year: year,
+      });
+
+      if (!error && data) {
+        return String(data);
+      }
+    } catch {
+      // Fallback below for local/dev or before SQL is applied.
+    }
+  }
+
   const visits = await getPrescriptionVisits();
 
   const currentYearCount = visits.filter((visit) =>
@@ -196,11 +211,10 @@ export async function createPrescriptionVisit(input: {
     throw new Error("Patient name and email are required.");
   }
 
-  const rxNumber = await generateRxNumber();
+  const supabase = getOptionalSupabaseAdmin();
+  const rxNumber = await generateRxNumber(supabase);
   const uploadToken = crypto.randomUUID();
   const now = new Date().toISOString();
-
-  const supabase = getOptionalSupabaseAdmin();
 
   if (supabase) {
     const { data, error } = await supabase
