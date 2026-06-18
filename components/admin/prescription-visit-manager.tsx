@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 
@@ -52,6 +52,7 @@ export default function PrescriptionVisitManager() {
   const [loadingList, setLoadingList] = useState(true);
   const [form, setForm] = useState(emptyForm);
   const [visitSearch, setVisitSearch] = useState("");
+  const [visitFilter, setVisitFilter] = useState("Active");
 
   async function loadVisits() {
     setLoadingList(true);
@@ -202,6 +203,10 @@ export default function PrescriptionVisitManager() {
   }
   const filteredVisits = visits.filter((visit) => {
     const search = visitSearch.trim().toLowerCase();
+    const isDone = visit.status === "uploaded" || Boolean(visit.uploadedPrescriptionToken);
+
+    if (visitFilter === "Active" && isDone) return false;
+    if (visitFilter === "Done" && !isDone) return false;
 
     if (!search) {
       return true;
@@ -213,12 +218,20 @@ export default function PrescriptionVisitManager() {
       visit.patientEmail,
       visit.patientPhone,
       visit.appointmentType,
-      visit.status,
+      isDone ? "done uploaded completed" : visit.status,
     ]
       .join(" ")
       .toLowerCase()
       .includes(search);
   });
+
+  const activeVisitCount = visits.filter(
+    (visit) => visit.status !== "uploaded" && !visit.uploadedPrescriptionToken
+  ).length;
+
+  const doneVisitCount = visits.filter(
+    (visit) => visit.status === "uploaded" || Boolean(visit.uploadedPrescriptionToken)
+  ).length;
   return (
     <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
       <form
@@ -391,8 +404,12 @@ export default function PrescriptionVisitManager() {
               RX Records
             </span>
             <h2 className="mt-5 text-2xl font-extrabold text-foreground">
-              Recent Prescription Visits
+              Prescription Workflow
             </h2>
+
+            <p className="mt-2 text-sm text-muted-foreground">
+              Active sheets need doctor/scanner action. Done sheets are already uploaded to the patient portal.
+            </p>
           </div>
 
           <button
@@ -405,15 +422,39 @@ export default function PrescriptionVisitManager() {
         </div>
 
         <div className="mt-6 grid gap-4">
-          <label className="grid gap-2 text-sm font-bold text-foreground">
-            Search generated prescription sheets
-            <input
-              className="field"
-              value={visitSearch}
-              onChange={(event) => setVisitSearch(event.target.value)}
-              placeholder="Search RX, patient name, email, mobile, online/offline..."
-            />
-          </label>
+          <div className="grid gap-3 md:grid-cols-[1fr_180px]">
+            <label className="grid gap-2 text-sm font-bold text-foreground">
+              Search generated prescription sheets
+              <input
+                className="field"
+                value={visitSearch}
+                onChange={(event) => setVisitSearch(event.target.value)}
+                placeholder="Search RX, patient name, email, mobile, online/offline..."
+              />
+            </label>
+
+            <label className="grid gap-2 text-sm font-bold text-foreground">
+              View
+              <select
+                className="field"
+                value={visitFilter}
+                onChange={(event) => setVisitFilter(event.target.value)}
+              >
+                <option>Active</option>
+                <option>Done</option>
+                <option>All</option>
+              </select>
+            </label>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-2xl bg-blue-50 p-4 text-sm font-bold text-blue-800">
+              Active RX Sheets: {activeVisitCount}
+            </div>
+            <div className="rounded-2xl bg-green-50 p-4 text-sm font-bold text-green-800">
+              Done / Uploaded: {doneVisitCount}
+            </div>
+          </div>
           {loadingList && (
             <p className="text-sm text-muted-foreground">Loading prescription visits...</p>
           )}
@@ -436,7 +477,7 @@ export default function PrescriptionVisitManager() {
                       {visit.rxNumber}
                     </h3>
                     <span className="rounded-full bg-secondary px-3 py-1 text-xs font-bold uppercase text-primary">
-                      {visit.status}
+                      {visit.status === "uploaded" || visit.uploadedPrescriptionToken ? "done" : visit.status}
                     </span>
                   </div>
 
@@ -458,37 +499,47 @@ export default function PrescriptionVisitManager() {
                   </p>
                 </div>
 
-                <img
-                  src={`/api/rx/${visit.uploadToken}/qr`}
-                  alt={`QR for ${visit.rxNumber}`}
-                  className="h-24 w-24 rounded-xl border border-border bg-white p-2"
-                />
+                {visit.status === "uploaded" || visit.uploadedPrescriptionToken ? (
+                  <div className="grid h-24 w-24 place-items-center rounded-xl border border-green-200 bg-green-50 p-2 text-center text-xs font-black uppercase text-green-700">
+                    Done
+                  </div>
+                ) : (
+                  <img
+                    src={`/api/rx/${visit.uploadToken}/qr`}
+                    alt={`QR for ${visit.rxNumber}`}
+                    className="h-24 w-24 rounded-xl border border-border bg-white p-2"
+                  />
+                )}
               </div>
 
               <div className="mt-4 flex flex-wrap gap-2">
-                <a
-                  href={`/admin/prescription-visits/${visit.id}/print`}
-                  target="_blank"
-                  className="rounded-full bg-primary px-4 py-2 text-xs font-extrabold text-primary-foreground"
-                >
-                  Print Sheet
-                </a>
+                {visit.status !== "uploaded" && !visit.uploadedPrescriptionToken && (
+                  <>
+                    <a
+                      href={`/admin/prescription-visits/${visit.id}/print`}
+                      target="_blank"
+                      className="rounded-full bg-primary px-4 py-2 text-xs font-extrabold text-primary-foreground"
+                    >
+                      Print Sheet
+                    </a>
 
-                <a
-                  href={`/admin/prescription-visits/${visit.id}/write`}
-                  target="_blank"
-                  className="rounded-full bg-slate-900 px-4 py-2 text-xs font-extrabold text-white"
-                >
-                  Write Digitally
-                </a>
+                    <a
+                      href={`/admin/prescription-visits/${visit.id}/write`}
+                      target="_blank"
+                      className="rounded-full bg-slate-900 px-4 py-2 text-xs font-extrabold text-white"
+                    >
+                      Write Digitally
+                    </a>
 
-                <a
-                  href={`/rx/${visit.uploadToken}`}
-                  target="_blank"
-                  className="rounded-full border border-border bg-white px-4 py-2 text-xs font-extrabold text-foreground"
-                >
-                  Open QR Page
-                </a>
+                    <a
+                      href={`/rx/${visit.uploadToken}`}
+                      target="_blank"
+                      className="rounded-full border border-border bg-white px-4 py-2 text-xs font-extrabold text-foreground"
+                    >
+                      Open QR Page
+                    </a>
+                  </>
+                )}
 
                 {visit.status !== "uploaded" && (
                   <button
