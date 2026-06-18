@@ -72,19 +72,25 @@ async function isValidSession(request: NextRequest, requiredRole: PortalRole) {
   }
 }
 
+function isProtectedAdminPath(path: string) {
+  if (!path.startsWith("/admin")) return false;
+  if (path === "/admin/login" || path.startsWith("/admin/login/")) return false;
+
+  return true;
+}
+
+function isProtectedClientPath(path: string) {
+  return (
+    path.startsWith("/client/dashboard") ||
+    path.startsWith("/client/profile") ||
+    path.startsWith("/client/payment")
+  );
+}
+
 export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
 
-  if (
-    path.startsWith("/admin/dashboard") ||
-    path.startsWith("/admin/appointments") ||
-    path.startsWith("/admin/prescriptions") ||
-    path.startsWith("/admin/prescription-visits") ||
-    path.startsWith("/admin/scanner") ||
-    path.startsWith("/admin/reviews") ||
-    path.startsWith("/admin/payments") ||
-    path.startsWith("/admin/audit-logs")
-  ) {
+  if (isProtectedAdminPath(path)) {
     const valid = await isValidSession(request, "admin");
 
     if (!valid) {
@@ -92,11 +98,7 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  if (
-    path.startsWith("/client/dashboard") ||
-    path.startsWith("/client/profile") ||
-    path.startsWith("/client/payment")
-  ) {
+  if (isProtectedClientPath(path)) {
     const valid = await isValidSession(request, "client");
 
     if (!valid) {
@@ -109,14 +111,7 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/admin/dashboard/:path*",
-    "/admin/appointments/:path*",
-    "/admin/prescriptions/:path*",
-    "/admin/prescription-visits/:path*",
-    "/admin/scanner/:path*",
-    "/admin/reviews/:path*",
-    "/admin/payments/:path*",
-    "/admin/audit-logs/:path*",
+    "/admin/:path*",
     "/client/dashboard/:path*",
     "/client/profile/:path*",
     "/client/payment/:path*",
