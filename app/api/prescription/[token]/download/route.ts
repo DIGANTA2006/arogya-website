@@ -1,4 +1,5 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+import { getPrescriptionAccessState } from "@/lib/prescription-access";
 import {
   getPrescriptionByToken,
   getPrescriptionDownload,
@@ -17,6 +18,20 @@ export async function GET(
       return NextResponse.json(
         { error: "Prescription not found." },
         { status: 404 }
+      );
+    }
+
+    const access = await getPrescriptionAccessState(prescription.patientEmail);
+
+    if (!access.allowed) {
+      return NextResponse.json(
+        {
+          error:
+            access.reason === "wrong-account"
+              ? "This prescription belongs to a different patient account."
+              : "Login required to download this prescription.",
+        },
+        { status: 403 }
       );
     }
 
