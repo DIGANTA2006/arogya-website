@@ -37,7 +37,9 @@ export async function GET(
 
     const download = await getPrescriptionDownload(prescription);
 
-    return NextResponse.redirect(download.redirectUrl);
+    return NextResponse.redirect(download.redirectUrl, {
+      headers: { "Cache-Control": "private, no-store" },
+    });
   } catch (error) {
     return NextResponse.json(
       {

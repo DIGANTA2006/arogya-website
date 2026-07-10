@@ -3,7 +3,9 @@ import { getAppointments } from '@/lib/appointment-store'
 import { hasPortalRole } from '@/lib/portal-auth'
 
 function csvCell(value: unknown) {
-  return `"${String(value || '').replace(/"/g, '""')}"`
+  const text = String(value || '')
+  const spreadsheetSafe = /^[\s]*[=+\-@]/.test(text) ? `'${text}` : text
+  return `"${spreadsheetSafe.replace(/"/g, '""')}"`
 }
 
 export async function GET() {
@@ -45,6 +47,7 @@ export async function GET() {
     headers: {
       'Content-Type': 'text/csv; charset=utf-8',
       'Content-Disposition': 'attachment; filename=appointments.csv',
+      'Cache-Control': 'private, no-store',
     },
   })
 }

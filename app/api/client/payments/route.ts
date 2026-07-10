@@ -1,11 +1,12 @@
 import { assertSameOrigin } from "@/lib/request-guard";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { getAppointments } from "@/lib/appointment-store";
+import { getAppointmentsForPatient } from "@/lib/appointment-store";
 import { requireVerifiedPatientEmail } from "@/lib/email-verification";
 import {
   getOnlineConsultationFee,
   isOnlineAppointmentType,
+  isAppointmentPast,
 } from "@/lib/consultation-flow";
 import { hasPortalRole } from "@/lib/portal-auth";
 import {
@@ -13,6 +14,7 @@ import {
   getPaymentsForPatient,
   submitAppointmentPayment,
 } from "@/lib/payment-store";
+import { UploadValidationError } from "@/lib/file-validation";
 
 export const runtime = "nodejs";
 
@@ -108,6 +110,15 @@ export async function POST(request: Request) {
       );
     }
 
+    const contentLength = Number(request.headers.get("content-length") || 0);
+
+    if (contentLength > 11 * 1024 * 1024) {
+      return NextResponse.json(
+        { error: "Payment submission is too large." },
+        { status: 413 }
+      );
+    }
+
     const formData = await request.formData();
 
     const appointmentId = clean(formData.get("appointmentId"));
@@ -121,12 +132,11 @@ export async function POST(request: Request) {
       );
     }
 
-    const appointments = await getAppointments();
+    const appointments = await getAppointmentsForPatient(session.email);
 
     const appointment = appointments.find(
       (item) =>
-        item.id === appointmentId &&
-        item.email.toLowerCase() === session.email.toLowerCase()
+        item.id === appointmentId
     );
 
     if (!appointment) {
@@ -143,6 +153,17 @@ export async function POST(request: Request) {
             "Online UPI payment is only available for Online Video Consultation. Please pay at clinic for physical appointments.",
         },
         { status: 403 }
+      );
+    }
+
+    if (
+      appointment.status === "Cancelled" ||
+      appointment.status === "Completed" ||
+      isAppointmentPast({ date: appointment.date, time: appointment.time })
+    ) {
+      return NextResponse.json(
+        { error: "Payment submission is closed for this appointment." },
+        { status: 409 }
       );
     }
 
@@ -173,9 +194,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: setupError }, { status: 500 });
     }
 
+    const message = error instanceof Error ? error.message : "Payment submission failed.";
+    const status =
+      error instanceof UploadValidationError
+        ? 400
+        : message.toLowerCase().includes("already")
+          ? 409
+          : 500;
+
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Payment submission failed." },
-      { status: 500 }
+      { error: message },
+      { status }
     );
   }
 }

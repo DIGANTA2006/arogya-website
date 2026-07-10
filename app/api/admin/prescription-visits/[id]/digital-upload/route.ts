@@ -1,7 +1,10 @@
 import { assertSameOrigin } from "@/lib/request-guard";
 import { NextResponse } from "next/server";
 import { hasPortalRole } from "@/lib/portal-auth";
-import { createPrescription } from "@/lib/prescription-store";
+import {
+  createPrescription,
+  deletePrescriptionById,
+} from "@/lib/prescription-store";
 import {
   getPrescriptionVisitById,
   markPrescriptionVisitUploaded,
@@ -10,6 +13,7 @@ import {
   getPrescriptionVisitExpiryMessage,
   isPrescriptionVisitUploadExpired,
 } from "@/lib/rx-reliability";
+import { UploadValidationError } from "@/lib/file-validation";
 
 type Body = {
   imageData?: string;
@@ -23,6 +27,10 @@ function clean(value?: string) {
 }
 
 function parsePngDataUrl(dataUrl: string) {
+  if (dataUrl.length > 28 * 1024 * 1024) {
+    throw new Error("Digital prescription is too large.");
+  }
+
   const match = dataUrl.match(/^data:image\/png;base64,(.+)$/);
 
   if (!match?.[1]) {
@@ -53,6 +61,15 @@ export async function POST(
   }
 
   try {
+    const contentLength = Number(request.headers.get("content-length") || 0);
+
+    if (contentLength > 28 * 1024 * 1024) {
+      return NextResponse.json(
+        { error: "Digital prescription is too large." },
+        { status: 413 }
+      );
+    }
+
     const { id } = await params;
     const body = (await request.json()) as Body;
 
@@ -124,10 +141,23 @@ export async function POST(
       nextAppointmentDate: clean(body.nextAppointmentDate),
     });
 
-    const updatedVisit = await markPrescriptionVisitUploaded(visit.id, {
-      prescriptionId: prescription.id,
-      secureToken: prescription.secureToken,
-    });
+    let updatedVisit;
+
+    try {
+      updatedVisit = await markPrescriptionVisitUploaded(visit.id, {
+        prescriptionId: prescription.id,
+        secureToken: prescription.secureToken,
+      });
+    } catch (error) {
+      await deletePrescriptionById(prescription.id).catch(() => undefined);
+      throw error;
+    }
+
+    if (visit.uploadedPrescriptionId) {
+      await deletePrescriptionById(visit.uploadedPrescriptionId).catch((error) => {
+        console.error("[digital-upload] Could not remove superseded prescription.", error);
+      });
+    }
 
     return NextResponse.json({
       success: true,
@@ -136,12 +166,17 @@ export async function POST(
       securePage: `/prescription/${prescription.secureToken}`,
     });
   } catch (error) {
+    const detail = error instanceof Error ? error.message : "Unknown error";
+    const inputError =
+      error instanceof UploadValidationError ||
+      /invalid|too (?:large|long)|cannot be in the past|must be/i.test(detail);
+
     return NextResponse.json(
       {
         error: "Digital prescription upload failed.",
-        detail: error instanceof Error ? error.message : "Unknown error",
+        detail,
       },
-      { status: 500 }
+      { status: inputError ? 400 : 500 }
     );
   }
 }

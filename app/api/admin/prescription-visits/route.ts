@@ -13,6 +13,13 @@ import {
 } from "@/lib/prescription-visit-store";
 import { createPatient, findPatientByEmail } from "@/lib/patient-store";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import {
+  isValidEmail,
+  normalizeEmail,
+  normalizeIndianPhone,
+  normalizePatientAge,
+  validatePatientName,
+} from "@/lib/input-validation";
 type Body = {
   patientEmail?: string;
   patientName?: string;
@@ -49,6 +56,12 @@ async function sendPatientSetupPasswordEmail(input: {
   const token = generateSecureToken();
   const tokenHash = hashToken(token);
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  await supabase
+    .from("password_reset_requests")
+    .update({ used_at: new Date().toISOString() })
+    .eq("patient_email", email)
+    .is("used_at", null);
 
   const { error } = await supabase.from("password_reset_requests").insert({
     patient_email: email,
@@ -176,14 +189,21 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json()) as Body;
 
-    const patientName = clean(body.patientName);
-    const patientEmail = clean(body.patientEmail).toLowerCase();
-    const patientPhone = clean(body.patientPhone);
-    const patientAge = clean(body.patientAge);
+    const patientName = validatePatientName(body.patientName);
+    const patientEmail = normalizeEmail(body.patientEmail);
+    const rawPhone = clean(body.patientPhone);
+    const rawAge = clean(body.patientAge);
+    const patientPhone = rawPhone ? normalizeIndianPhone(rawPhone) : "";
+    const patientAge = rawAge ? normalizePatientAge(rawAge) : "";
 
-    if (!patientName || !patientEmail) {
+    if (
+      !patientName ||
+      !isValidEmail(patientEmail) ||
+      (rawPhone && !patientPhone) ||
+      (rawAge && !patientAge)
+    ) {
       return NextResponse.json(
-        { error: "Patient name and email are required." },
+        { error: "Enter valid patient name, email, mobile number, and age." },
         { status: 400 }
       );
     }
@@ -204,12 +224,26 @@ export async function POST(request: Request) {
       appointmentType: clean(body.appointmentType || "Clinic Visit"),
     });
 
+    const patientData = patientResult.patient as any;
+
     return NextResponse.json({
       success: true,
       visit,
       patientCreated: patientResult.created,
       setupEmailSent: patientResult.setupEmailSent,
-      patient: patientResult.patient,
+      patient: {
+        id: patientData.id,
+        name: patientData.name || patientName,
+        email: patientData.email || patientEmail,
+        phone: patientData.phone || patientPhone,
+        age: patientData.age || patientAge,
+        mobileVerified: Boolean(
+          patientData.mobileVerified ?? patientData.mobile_verified
+        ),
+        emailVerified: Boolean(
+          patientData.emailVerified ?? patientData.email_verified
+        ),
+      },
     });
   } catch (error) {
     return NextResponse.json(

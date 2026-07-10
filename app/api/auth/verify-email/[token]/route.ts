@@ -25,15 +25,28 @@ export async function GET(
       );
     }
 
-    await supabase
-      .from("patients")
-      .update({ email_verified: true })
-      .eq("email", verifyRow.patient_email);
-
-    await supabase
+    const { data: consumed, error: consumeError } = await supabase
       .from("email_verification_tokens")
       .update({ used_at: new Date().toISOString() })
-      .eq("id", verifyRow.id);
+      .eq("id", verifyRow.id)
+      .is("used_at", null)
+      .select("patient_email")
+      .maybeSingle();
+
+    if (consumeError || !consumed) {
+      return NextResponse.redirect(
+        new URL("/client/login?verified=invalid", _request.url)
+      );
+    }
+
+    const { error: patientError } = await supabase
+      .from("patients")
+      .update({ email_verified: true })
+      .eq("email", consumed.patient_email);
+
+    if (patientError) {
+      throw new Error(patientError.message);
+    }
 
     return NextResponse.redirect(
       new URL("/client/login?verified=success", _request.url)

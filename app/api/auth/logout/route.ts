@@ -1,18 +1,42 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { assertSameOrigin } from "@/lib/request-guard";
+
 function clearSession(response: NextResponse) {
-  response.cookies.set("portal_role", "", { path: "/", maxAge: 0 });
-  response.cookies.set("portal_token", "", { path: "/", maxAge: 0 });
-  response.cookies.set("portal_subject", "", { path: "/", maxAge: 0 });
-  response.cookies.set("portal_email", "", { path: "/", maxAge: 0 });
-  response.cookies.set("portal_name", "", { path: "/", maxAge: 0 });
+  for (const name of [
+    "portal_role",
+    "portal_token",
+    "portal_subject",
+    "portal_email",
+    "portal_name",
+    "verified_mobile",
+  ]) {
+    response.cookies.set(name, "", {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 0,
+    });
+  }
 
   return response;
 }
 
 export async function POST(request: NextRequest) {
-  return clearSession(NextResponse.redirect(new URL("/", request.url), { status: 303 }));
+  const originCheck = assertSameOrigin(request);
+
+  if (!originCheck.ok) {
+    return originCheck.response;
+  }
+
+  return clearSession(
+    NextResponse.redirect(new URL("/", request.url), { status: 303 })
+  );
 }
 
-export async function GET(request: NextRequest) {
-  return clearSession(NextResponse.redirect(new URL("/", request.url)));
+export async function GET() {
+  return NextResponse.json(
+    { error: "Use POST to end a portal session." },
+    { status: 405, headers: { Allow: "POST" } }
+  );
 }

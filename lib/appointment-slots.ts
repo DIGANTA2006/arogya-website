@@ -1,6 +1,8 @@
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
 export const APPOINTMENT_SLOT_DURATION_MINUTES = 60;
+export const APPOINTMENT_BOOKING_LEAD_MINUTES = 30;
+export const APPOINTMENT_BOOKING_MAX_DAYS = 180;
 
 export const APPOINTMENT_SLOT_TIMES = [
   "14:00",
@@ -29,6 +31,24 @@ function getIndiaTodayString() {
   const day = parts.find((part) => part.type === "day")?.value;
 
   return `${year}-${month}-${day}`;
+}
+
+function getIndiaCurrentMinutes() {
+  const parts = new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date());
+
+  const hour = Number(parts.find((part) => part.type === "hour")?.value || 0);
+  const minute = Number(parts.find((part) => part.type === "minute")?.value || 0);
+  return hour * 60 + minute;
+}
+
+function isRealIsoDate(date: string) {
+  const parsed = new Date(`${date}T00:00:00.000Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === date;
 }
 
 export function normalizeTime(value: string) {
@@ -85,7 +105,7 @@ export function getAppointmentSlotTimes(_appointmentType?: string) {
 export function validateAppointmentDate(dateValue: string): SlotValidation {
   const date = String(dateValue || "").trim();
 
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !isRealIsoDate(date)) {
     return {
       ok: false,
       error: "Please select a valid appointment date.",
@@ -98,6 +118,17 @@ export function validateAppointmentDate(dateValue: string): SlotValidation {
     return {
       ok: false,
       error: "Past dates cannot be booked.",
+    };
+  }
+
+  const todayTime = new Date(`${today}T00:00:00.000Z`).getTime();
+  const selectedTime = new Date(`${date}T00:00:00.000Z`).getTime();
+  const daysAhead = Math.round((selectedTime - todayTime) / (24 * 60 * 60 * 1000));
+
+  if (daysAhead > APPOINTMENT_BOOKING_MAX_DAYS) {
+    return {
+      ok: false,
+      error: `Appointments can be booked up to ${APPOINTMENT_BOOKING_MAX_DAYS} days ahead.`,
     };
   }
 
@@ -161,6 +192,16 @@ export function validateClinicSlot(
     return {
       ok: false,
       error: "This appointment time is not available.",
+    };
+  }
+
+  if (
+    dateValidation.date === getIndiaTodayString() &&
+    minutes < getIndiaCurrentMinutes() + APPOINTMENT_BOOKING_LEAD_MINUTES
+  ) {
+    return {
+      ok: false,
+      error: `Same-day appointments must be booked at least ${APPOINTMENT_BOOKING_LEAD_MINUTES} minutes before the slot.`,
     };
   }
 
@@ -248,7 +289,16 @@ export async function getAvailableSlots(dateValue: string, appointmentType = "Cl
     .filter(Boolean);
 
   const slots = getAppointmentSlotTimes(appointmentType).filter((slot) => {
-    return !activeBookedTimes.some((bookedTime) => slotsOverlap(slot, bookedTime));
+    const validNow = validateClinicSlot(
+      dateValidation.date || "",
+      slot,
+      appointmentType
+    );
+
+    return (
+      validNow.ok &&
+      !activeBookedTimes.some((bookedTime) => slotsOverlap(slot, bookedTime))
+    );
   });
 
   return {

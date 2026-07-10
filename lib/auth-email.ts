@@ -26,10 +26,9 @@ export async function sendAuthEmail(input: {
   actionUrl: string;
 }) {
   const resendApiKey = process.env.RESEND_API_KEY;
-  const fromEmail =
-    process.env.RESEND_FROM_EMAIL || "Arogya Clinic <onboarding@resend.dev>";
+  const fromEmail = process.env.RESEND_FROM_EMAIL;
 
-  if (!resendApiKey) {
+  if (!resendApiKey || !fromEmail) {
     return false;
   }
 

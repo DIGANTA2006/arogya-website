@@ -1,12 +1,11 @@
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { createAndSendPatientEmailVerification } from "@/lib/email-verification";
+import { hasPortalRole } from "@/lib/portal-auth";
+import { checkRateLimit, getRequestIp, rateLimitPayload } from "@/lib/rate-limit";
 import { assertSameOrigin } from "@/lib/request-guard";
 
 export const runtime = "nodejs";
-
-function cleanEmail(value: unknown) {
-  return String(value || "").trim().toLowerCase();
-}
 
 export async function POST(request: Request) {
   const originCheck = assertSameOrigin(request);
@@ -15,17 +14,27 @@ export async function POST(request: Request) {
     return originCheck.response;
   }
 
-  const body = (await request.json().catch(() => ({}))) as {
-    email?: string;
-  };
+  const allowed = await hasPortalRole("client");
+  const cookieStore = await cookies();
+  const email = String(cookieStore.get("portal_subject")?.value || "")
+    .trim()
+    .toLowerCase();
 
-  const email = cleanEmail(body.email);
-
-  if (!email) {
+  if (!allowed || !email) {
     return NextResponse.json(
-      { error: "Email is required." },
-      { status: 400 }
+      { error: "Login to your patient account before resending verification." },
+      { status: 401 }
     );
+  }
+
+  const limit = await checkRateLimit({
+    key: `auth:resend-email-verification:${email}:${getRequestIp(request)}`,
+    limit: 3,
+    windowSeconds: 60 * 60,
+  });
+
+  if (!limit.allowed) {
+    return NextResponse.json(rateLimitPayload(limit), { status: 429 });
   }
 
   try {
@@ -36,14 +45,9 @@ export async function POST(request: Request) {
       alreadyVerified: result.alreadyVerified,
       message: result.message,
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Could not send verification email.",
-      },
+      { error: "Could not send verification email." },
       { status: 500 }
     );
   }

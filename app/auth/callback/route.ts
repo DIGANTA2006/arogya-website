@@ -1,6 +1,10 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
+import {
+  createPortalToken,
+  PORTAL_SESSION_MAX_AGE_SECONDS,
+} from "@/lib/portal-auth";
 
 type CookieToSet = {
   name: string;
@@ -9,30 +13,6 @@ type CookieToSet = {
 };
 
 export const dynamic = "force-dynamic";
-
-async function createSignature(value: string) {
-  const secret = process.env.AUTH_SECRET;
-
-  if (!secret) {
-    throw new Error("AUTH_SECRET is required.");
-  }
-
-  const encoder = new TextEncoder();
-
-  const key = await crypto.subtle.importKey(
-    "raw",
-    encoder.encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"]
-  );
-
-  const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(value));
-
-  return Array.from(new Uint8Array(signature))
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
 
 async function upsertPatient(email: string, name: string) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -60,6 +40,15 @@ async function upsertPatient(email: string, name: string) {
   }
 
   if (existing) {
+    const { error: verifyError } = await admin
+      .from("patients")
+      .update({ email_verified: true })
+      .eq("id", existing.id);
+
+    if (verifyError) {
+      throw new Error(verifyError.message);
+    }
+
     return {
       email: String(existing.email),
       name: String(existing.name || name || "Patient"),
@@ -75,6 +64,7 @@ async function upsertPatient(email: string, name: string) {
       email,
       password_hash: null,
       mobile_verified: false,
+      email_verified: true,
     })
     .select("email,name")
     .single();
@@ -163,7 +153,7 @@ export async function GET(request: NextRequest) {
     const patient = await upsertPatient(email, name);
     const role = "client";
     const subject = patient.email.toLowerCase();
-    const token = await createSignature(`${role}:${subject}`);
+    const token = await createPortalToken(role, subject);
 
     const response = NextResponse.redirect(
       new URL("/client/dashboard", request.url)
@@ -178,7 +168,7 @@ export async function GET(request: NextRequest) {
       sameSite: "lax" as const,
       secure: process.env.NODE_ENV === "production",
       path: "/",
-      maxAge: 60 * 60 * 8,
+      maxAge: PORTAL_SESSION_MAX_AGE_SECONDS,
     };
 
     response.cookies.set("portal_role", role, cookieOptions);

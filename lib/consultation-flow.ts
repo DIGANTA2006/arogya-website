@@ -2,7 +2,7 @@ import { createHash } from "crypto";
 
 export const DEFAULT_ONLINE_CONSULTATION_FEE = 500;
 export const MEETING_OPEN_BEFORE_MINUTES = 30;
-export const MEETING_CLOSE_AFTER_HOURS = 8;
+export const MEETING_CLOSE_AFTER_MINUTES = 60;
 
 export function cleanText(value: unknown) {
   return String(value || "").trim();
@@ -68,7 +68,7 @@ export function isMeetingWindowOpen(input: {
     appointmentStart.getTime() - MEETING_OPEN_BEFORE_MINUTES * 60 * 1000
   );
   const closeAt = new Date(
-    appointmentStart.getTime() + MEETING_CLOSE_AFTER_HOURS * 60 * 60 * 1000
+    appointmentStart.getTime() + MEETING_CLOSE_AFTER_MINUTES * 60 * 1000
   );
 
   return now >= openAt && now <= closeAt;
@@ -85,7 +85,7 @@ export function isAppointmentPast(input: {
 
   const now = input.now || new Date();
   const closeAt = new Date(
-    appointmentStart.getTime() + MEETING_CLOSE_AFTER_HOURS * 60 * 60 * 1000
+    appointmentStart.getTime() + MEETING_CLOSE_AFTER_MINUTES * 60 * 1000
   );
 
   return now > closeAt;
@@ -94,7 +94,11 @@ export function isAppointmentPast(input: {
 function getRequiredAuthSecret() {
   const secret = process.env.AUTH_SECRET;
 
-  if (!secret || secret.length < 32) {
+  if (
+    !secret ||
+    secret.length < 32 ||
+    /generate_|change[_-]?me|your[_-]?secret/i.test(secret)
+  ) {
     throw new Error("AUTH_SECRET env var is required and must be at least 32 characters.");
   }
 

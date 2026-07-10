@@ -1,5 +1,9 @@
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
-import { updateAppointmentStatus } from "@/lib/appointment-store";
+import {
+  getAppointments,
+  updateAppointmentStatus,
+} from "@/lib/appointment-store";
+import { verifyUploadedDocument } from "@/lib/file-validation";
 
 export type PaymentStatus = "pending" | "submitted" | "paid" | "rejected";
 
@@ -24,13 +28,6 @@ export type AppointmentPayment = {
 
 const PAYMENT_BUCKET = "payment-proofs";
 const MAX_PAYMENT_PROOF_SIZE = 10 * 1024 * 1024;
-
-const ALLOWED_PAYMENT_PROOF_TYPES: Record<string, string> = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-  "application/pdf": "pdf",
-};
 
 function clean(value: unknown) {
   return String(value || "").trim();
@@ -114,29 +111,23 @@ async function uploadPaymentProof(input: {
 
   if (!file || file.size <= 0) return "";
 
-  const extension = ALLOWED_PAYMENT_PROOF_TYPES[file.type];
-
-  if (!extension) {
-    throw new Error("Only JPG, PNG, WEBP or PDF payment proof is allowed.");
-  }
-
-  if (file.size > MAX_PAYMENT_PROOF_SIZE) {
-    throw new Error("Payment proof must be 10 MB or smaller.");
-  }
+  const verifiedFile = await verifyUploadedDocument({
+    file,
+    maxBytes: MAX_PAYMENT_PROOF_SIZE,
+    label: "Payment proof",
+  });
 
   const supabase = getSupabaseAdmin();
 
   const safeEmail = safeStoragePart(cleanEmail(input.patientEmail));
   const safeAppointmentId = safeStoragePart(clean(input.appointmentId));
-  const fileName = `${Date.now()}-${crypto.randomUUID()}.${extension}`;
+  const fileName = `${Date.now()}-${crypto.randomUUID()}.${verifiedFile.extension}`;
   const storagePath = `${safeEmail}/${safeAppointmentId}/${fileName}`;
-
-  const buffer = Buffer.from(await file.arrayBuffer());
 
   const { error } = await supabase.storage
     .from(PAYMENT_BUCKET)
-    .upload(storagePath, buffer, {
-      contentType: file.type,
+    .upload(storagePath, verifiedFile.buffer, {
+      contentType: verifiedFile.contentType,
       upsert: false,
     });
 
@@ -265,13 +256,15 @@ export async function submitAppointmentPayment(input: {
   }
 
   let screenshotUrl = existing?.screenshotUrl || "";
+  let newProofPath = "";
 
   if (input.proofFile) {
-    screenshotUrl = await uploadPaymentProof({
+    newProofPath = await uploadPaymentProof({
       patientEmail,
       appointmentId,
       file: input.proofFile,
     });
+    screenshotUrl = newProofPath;
   }
 
   const supabase = getSupabaseAdmin();
@@ -308,7 +301,33 @@ export async function submitAppointmentPayment(input: {
   const { data, error } = await query;
 
   if (error || !data) {
+    if (newProofPath) {
+      await supabase.storage.from(PAYMENT_BUCKET).remove([newProofPath]);
+    }
+
+    if (error?.code === "23505") {
+      throw new Error(
+        String(error.message || "").toLowerCase().includes("transaction")
+          ? "This UPI reference was already submitted. Check the number and contact the clinic if needed."
+          : "A payment already exists for this appointment. Refresh and try again."
+      );
+    }
+
     throw new Error(error?.message || "Payment submission failed.");
+  }
+
+  if (
+    newProofPath &&
+    existing?.screenshotUrl &&
+    existing.screenshotUrl !== newProofPath
+  ) {
+    const { error: cleanupError } = await supabase.storage
+      .from(PAYMENT_BUCKET)
+      .remove([existing.screenshotUrl]);
+
+    if (cleanupError) {
+      console.error("[payment-store] Old payment proof cleanup failed.", cleanupError);
+    }
   }
 
   return mapRow(data);
@@ -353,7 +372,14 @@ export async function updatePaymentStatus(input: {
 
   if (payment.status === "paid") {
     try {
-      await updateAppointmentStatus(payment.appointmentId, "Confirmed");
+      const appointments = await getAppointments();
+      const appointment = appointments.find(
+        (item) => item.id === payment.appointmentId
+      );
+
+      if (appointment && !["Completed", "Cancelled"].includes(appointment.status)) {
+        await updateAppointmentStatus(payment.appointmentId, "Confirmed");
+      }
     } catch (error) {
       console.error("[payment-store] Could not auto-confirm paid appointment.", error);
     }

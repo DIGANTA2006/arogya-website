@@ -9,6 +9,7 @@ import {
 import { findPatientByEmail } from "@/lib/patient-store";
 import { checkRateLimit, getRequestIp, rateLimitPayload } from "@/lib/rate-limit";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import { isValidEmail, normalizeEmail } from "@/lib/input-validation";
 type Body = {
   email?: string;
 };
@@ -22,7 +23,7 @@ export async function POST(request: Request) {
 
   try {
     const body = (await request.json()) as Body;
-    const email = String(body.email || "").trim().toLowerCase();
+    const email = normalizeEmail(body.email);
     const ip = getRequestIp(request);
 
     const limit = await checkRateLimit({
@@ -35,8 +36,8 @@ export async function POST(request: Request) {
       return NextResponse.json(rateLimitPayload(limit), { status: 429 });
     }
 
-    if (!email) {
-      return NextResponse.json({ error: "Email is required." }, { status: 400 });
+    if (!isValidEmail(email)) {
+      return NextResponse.json({ error: "Enter a valid email." }, { status: 400 });
     }
 
     const patient = await findPatientByEmail(email).catch(() => undefined);
@@ -53,6 +54,12 @@ export async function POST(request: Request) {
     const tokenHash = hashToken(token);
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
     const supabase = getSupabaseAdmin();
+
+    await supabase
+      .from("password_reset_requests")
+      .update({ used_at: new Date().toISOString() })
+      .eq("patient_email", email)
+      .is("used_at", null);
 
     await supabase.from("password_reset_requests").insert({
       patient_email: email,
@@ -77,9 +84,12 @@ export async function POST(request: Request) {
       message: "If an account exists, a reset link will be sent.",
     });
   } catch (error) {
-    return NextResponse.json(
-      { error: "Password reset request failed." },
-      { status: 500 }
-    );
+    console.error("[password-reset] Request could not be completed.", error);
+    // Keep the public response indistinguishable so database/email failures do
+    // not become an account-existence oracle.
+    return NextResponse.json({
+      success: true,
+      message: "If an account exists, a reset link will be sent.",
+    });
   }
 }

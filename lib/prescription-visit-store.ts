@@ -114,9 +114,8 @@ export async function getPrescriptionVisits(): Promise<PrescriptionVisit[]> {
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (!error && data) {
-      return data.map(mapRow);
-    }
+    if (error) throw new Error(error.message);
+    return (data || []).map(mapRow);
   }
 
   return getLocalVisits();
@@ -132,9 +131,8 @@ export async function getPrescriptionVisitById(id: string) {
       .eq("id", id)
       .maybeSingle();
 
-    if (!error && data) {
-      return mapRow(data);
-    }
+    if (error) throw new Error(error.message);
+    return data ? mapRow(data) : undefined;
   }
 
   const visits = await getLocalVisits();
@@ -155,9 +153,8 @@ export async function getPrescriptionVisitByToken(token: string) {
       .eq("upload_token", uploadToken)
       .maybeSingle();
 
-    if (!error && data) {
-      return mapRow(data);
-    }
+    if (error) throw new Error(error.message);
+    return data ? mapRow(data) : undefined;
   }
 
   const visits = await getLocalVisits();
@@ -168,17 +165,17 @@ async function generateRxNumber(supabase?: any) {
   const year = new Date().getFullYear();
 
   if (supabase) {
-    try {
-      const { data, error } = await supabase.rpc("next_rx_number", {
-        target_year: year,
-      });
+    const { data, error } = await supabase.rpc("next_rx_number", {
+      target_year: year,
+    });
 
-      if (!error && data) {
-        return String(data);
-      }
-    } catch {
-      // Fallback below for local/dev or before SQL is applied.
+    if (error || !data) {
+      throw new Error(
+        error?.message || "Atomic RX number generation is unavailable. Apply the RX database migration."
+      );
     }
+
+    return String(data);
   }
 
   const visits = await getPrescriptionVisits();
@@ -212,6 +209,20 @@ export async function createPrescriptionVisit(input: {
   }
 
   const supabase = getOptionalSupabaseAdmin();
+
+  if (appointmentId && supabase) {
+    const { data: existingVisit, error: existingError } = await supabase
+      .from("prescription_visits")
+      .select("*")
+      .eq("appointment_id", appointmentId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (existingError) throw new Error(existingError.message);
+    if (existingVisit) return mapRow(existingVisit);
+  }
+
   const rxNumber = await generateRxNumber(supabase);
   const uploadToken = crypto.randomUUID();
   const now = new Date().toISOString();
@@ -234,6 +245,18 @@ export async function createPrescriptionVisit(input: {
       .select()
       .single();
 
+    if (error?.code === "23505" && appointmentId) {
+      const { data: racedVisit, error: racedError } = await supabase
+        .from("prescription_visits")
+        .select("*")
+        .eq("appointment_id", appointmentId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!racedError && racedVisit) return mapRow(racedVisit);
+    }
+
     if (error || !data) {
       throw new Error(error?.message || "Prescription visit creation failed.");
     }
@@ -242,6 +265,13 @@ export async function createPrescriptionVisit(input: {
   }
 
   const visits = await getLocalVisits();
+
+  if (appointmentId) {
+    const existingVisit = visits.find(
+      (visit) => visit.appointmentId === appointmentId
+    );
+    if (existingVisit) return existingVisit;
+  }
 
   const visit: PrescriptionVisit = {
     id: crypto.randomUUID(),

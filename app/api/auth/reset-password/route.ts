@@ -4,6 +4,7 @@ import { hashToken } from "@/lib/auth-email";
 import { hashPassword } from "@/lib/patient-store";
 import { checkRateLimit, getRequestIp, rateLimitPayload } from "@/lib/rate-limit";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import { validatePassword } from "@/lib/input-validation";
 type Body = {
   token?: string;
   password?: string;
@@ -39,9 +40,11 @@ export async function POST(request: Request) {
       );
     }
 
-    if (password.length < 8) {
+    const passwordResult = validatePassword(password);
+
+    if (!passwordResult.ok) {
       return NextResponse.json(
-        { error: "Password must be at least 8 characters." },
+        { error: passwordResult.error },
         { status: 400 }
       );
     }
@@ -64,21 +67,31 @@ export async function POST(request: Request) {
       );
     }
 
-    const passwordHash = await hashPassword(password);
+    const passwordHash = await hashPassword(passwordResult.password);
+
+    const { data: consumedReset, error: consumeError } = await supabase
+      .from("password_reset_requests")
+      .update({ used_at: new Date().toISOString() })
+      .eq("id", resetRow.id)
+      .is("used_at", null)
+      .select("patient_email")
+      .maybeSingle();
+
+    if (consumeError || !consumedReset) {
+      return NextResponse.json(
+        { error: "This reset link was already used." },
+        { status: 409 }
+      );
+    }
 
     const { error: updateError } = await supabase
       .from("patients")
       .update({ password_hash: passwordHash })
-      .eq("email", resetRow.patient_email);
+      .eq("email", consumedReset.patient_email);
 
     if (updateError) {
       return NextResponse.json({ error: updateError.message }, { status: 500 });
     }
-
-    await supabase
-      .from("password_reset_requests")
-      .update({ used_at: new Date().toISOString() })
-      .eq("id", resetRow.id);
 
     return NextResponse.json({
       success: true,

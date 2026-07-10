@@ -87,9 +87,8 @@ export async function getAppointments(): Promise<Appointment[]> {
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (!error && data) {
-      return data.map(mapRow);
-    }
+    if (error) throw new Error(error.message);
+    return (data || []).map(mapRow);
   }
 
   await ensureFile();
@@ -102,6 +101,27 @@ export async function getAppointments(): Promise<Appointment[]> {
   } catch {
     return [];
   }
+}
+
+export async function getAppointmentsForPatient(emailInput: string): Promise<Appointment[]> {
+  const email = String(emailInput || "").trim().toLowerCase();
+  if (!email) return [];
+
+  const supabase = getAdminOrNull();
+
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("appointments")
+      .select("*")
+      .eq("patient_email", email)
+      .order("created_at", { ascending: false });
+
+    if (error) throw new Error(error.message);
+    return (data || []).map(mapRow);
+  }
+
+  const appointments = await getAppointments();
+  return appointments.filter((appointment) => appointment.email.toLowerCase() === email);
 }
 
 export async function saveAppointments(appointments: Appointment[]) {
@@ -133,13 +153,19 @@ export async function addAppointment(
       .select("*")
       .single();
 
-    if (!error && data) {
-      return mapRow(data);
-    }
-
     if (error) {
+      if (error.code === "23505") {
+        throw new Error("This 1-hour doctor slot was just booked. Please choose another time.");
+      }
+
       throw new Error(error.message);
     }
+
+    if (!data) {
+      throw new Error("Appointment creation returned no record.");
+    }
+
+    return mapRow(data);
   }
 
   const appointments = await getAppointments();
@@ -171,9 +197,8 @@ export async function updateAppointmentStatus(
       .select("*")
       .maybeSingle();
 
-    if (!error && data) {
-      return mapRow(data);
-    }
+    if (error) throw new Error(error.message);
+    return data ? mapRow(data) : undefined;
   }
 
   const appointments = await getAppointments();

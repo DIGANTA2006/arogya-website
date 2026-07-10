@@ -1,28 +1,16 @@
 ﻿import { assertSameOrigin } from "@/lib/request-guard";
 import { NextResponse } from "next/server";
-import { cleanPhone } from "@/lib/mobile-otp-store";
 import { checkRateLimit, getRequestIp, rateLimitPayload } from "@/lib/rate-limit";
+import { normalizeIndianPhone } from "@/lib/input-validation";
 type Body = {
   phone?: string;
   mobile?: string;
 };
 
 function toE164Indian(phoneInput: string) {
-  const phone = cleanPhone(phoneInput);
-
-  if (!phone || phone.length < 10) {
-    throw new Error("Valid mobile number is required.");
-  }
-
-  if (phone.length === 10) {
-    return `+91${phone}`;
-  }
-
-  if (phone.length === 12 && phone.startsWith("91")) {
-    return `+${phone}`;
-  }
-
-  throw new Error("Enter a valid Indian mobile number.");
+  const phone = normalizeIndianPhone(phoneInput);
+  if (!phone) throw new Error("Enter a valid Indian mobile number.");
+  return `+${phone}`;
 }
 
 function getTwilioAuthHeader() {
@@ -46,18 +34,28 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json()) as Body;
     const rawPhone = String(body.phone || body.mobile || "").trim();
-    const cleanMobile = cleanPhone(rawPhone);
+    const cleanMobile = normalizeIndianPhone(rawPhone);
     const to = toE164Indian(rawPhone);
     const ip = getRequestIp(request);
 
-    const limit = await checkRateLimit({
-      key: `auth:send-mobile-otp:${cleanMobile || "unknown"}:${ip}`,
-      limit: 5,
-      windowSeconds: 15 * 60,
-    });
+    const [phoneLimit, ipLimit] = await Promise.all([
+      checkRateLimit({
+        key: `auth:send-mobile-otp:${cleanMobile || "unknown"}`,
+        limit: 5,
+        windowSeconds: 15 * 60,
+      }),
+      checkRateLimit({
+        key: `auth:send-mobile-otp-ip:${ip}`,
+        limit: 12,
+        windowSeconds: 15 * 60,
+      }),
+    ]);
 
-    if (!limit.allowed) {
-      return NextResponse.json(rateLimitPayload(limit), { status: 429 });
+    if (!phoneLimit.allowed || !ipLimit.allowed) {
+      return NextResponse.json(
+        rateLimitPayload(!phoneLimit.allowed ? phoneLimit : ipLimit),
+        { status: 429 }
+      );
     }
 
     const serviceSid = process.env.TWILIO_VERIFY_SERVICE_SID;

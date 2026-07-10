@@ -1,55 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-
-type PortalRole = "admin" | "client";
-
-function normalizePortalSubject(subject: string) {
-  return String(subject || "").trim().toLowerCase();
-}
-
-function getRequiredAuthSecret() {
-  const secret = process.env.AUTH_SECRET;
-
-  if (!secret || secret.length < 32) {
-    throw new Error("AUTH_SECRET env var is required and must be at least 32 characters.");
-  }
-
-  return secret;
-}
-
-async function createSignature(value: string) {
-  const secret = getRequiredAuthSecret();
-  const encoder = new TextEncoder();
-
-  const key = await crypto.subtle.importKey(
-    "raw",
-    encoder.encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"]
-  );
-
-  const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(value));
-
-  return Array.from(new Uint8Array(signature))
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-function safeEqual(a: string, b: string) {
-  if (a.length !== b.length) return false;
-
-  let result = 0;
-
-  for (let i = 0; i < a.length; i += 1) {
-    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  }
-
-  return result === 0;
-}
-
-async function createPortalToken(role: PortalRole, subject: string) {
-  return createSignature(`${role}:${normalizePortalSubject(subject)}`);
-}
+import {
+  normalizePortalSubject,
+  verifyPortalToken,
+  type PortalRole,
+} from "@/lib/portal-token";
 
 async function isValidSession(request: NextRequest, requiredRole: PortalRole) {
   const role = request.cookies.get("portal_role")?.value;
@@ -65,8 +19,7 @@ async function isValidSession(request: NextRequest, requiredRole: PortalRole) {
   }
 
   try {
-    const expectedToken = await createPortalToken(requiredRole, subject);
-    return safeEqual(token, expectedToken);
+    return await verifyPortalToken(requiredRole, subject, token);
   } catch {
     return false;
   }

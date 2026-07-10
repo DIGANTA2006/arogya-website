@@ -1,9 +1,8 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
 function normalizeOrigin(value: string) {
   try {
-    const url = new URL(value);
-    return url.origin.toLowerCase();
+    return new URL(value).origin.toLowerCase();
   } catch {
     return "";
   }
@@ -11,29 +10,14 @@ function normalizeOrigin(value: string) {
 
 function getAllowedOrigins(request: Request) {
   const allowed = new Set<string>();
-
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
   const vercelUrl = process.env.VERCEL_URL;
 
-  if (siteUrl) {
-    allowed.add(normalizeOrigin(siteUrl));
-  }
+  if (siteUrl) allowed.add(normalizeOrigin(siteUrl));
+  if (vercelUrl) allowed.add(normalizeOrigin(`https://${vercelUrl}`));
 
-  if (vercelUrl) {
-    allowed.add(normalizeOrigin(`https://${vercelUrl}`));
-  }
-
-  const host = request.headers.get("host");
-  const forwardedHost = request.headers.get("x-forwarded-host");
-  const forwardedProto = request.headers.get("x-forwarded-proto") || "https";
-
-  if (host) {
-    allowed.add(normalizeOrigin(`https://${host}`));
-    allowed.add(normalizeOrigin(`http://${host}`));
-  }
-
-  if (forwardedHost) {
-    allowed.add(normalizeOrigin(`${forwardedProto}://${forwardedHost}`));
+  if (!siteUrl) {
+    allowed.add(normalizeOrigin(request.url));
   }
 
   if (process.env.NODE_ENV !== "production") {
@@ -42,8 +26,17 @@ function getAllowedOrigins(request: Request) {
   }
 
   allowed.delete("");
-
   return allowed;
+}
+
+function rejectInvalidOrigin() {
+  return {
+    ok: false as const,
+    response: NextResponse.json(
+      { error: "Invalid or missing request origin." },
+      { status: 403 }
+    ),
+  };
 }
 
 export function assertSameOrigin(request: Request) {
@@ -53,29 +46,32 @@ export function assertSameOrigin(request: Request) {
     return { ok: true as const };
   }
 
-  const originHeader = request.headers.get("origin");
+  const fetchSite = String(request.headers.get("sec-fetch-site") || "").toLowerCase();
 
-  /*
-    Some server-side requests, cron calls, older browser form posts, or tools may
-    not include an Origin header. We do not block missing Origin to avoid breaking
-    legitimate same-site flows. When Origin exists, it must match the site.
-  */
-  if (!originHeader) {
-    return { ok: true as const };
+  if (fetchSite === "cross-site") {
+    return rejectInvalidOrigin();
   }
 
-  const requestOrigin = normalizeOrigin(originHeader);
   const allowedOrigins = getAllowedOrigins(request);
+  const origin = normalizeOrigin(request.headers.get("origin") || "");
 
-  if (allowedOrigins.has(requestOrigin)) {
+  if (origin) {
+    return allowedOrigins.has(origin)
+      ? { ok: true as const }
+      : rejectInvalidOrigin();
+  }
+
+  const referer = normalizeOrigin(request.headers.get("referer") || "");
+
+  if (referer) {
+    return allowedOrigins.has(referer)
+      ? { ok: true as const }
+      : rejectInvalidOrigin();
+  }
+
+  if (fetchSite === "same-origin" || process.env.NODE_ENV !== "production") {
     return { ok: true as const };
   }
 
-  return {
-    ok: false as const,
-    response: NextResponse.json(
-      { error: "Invalid request origin." },
-      { status: 403 }
-    ),
-  };
+  return rejectInvalidOrigin();
 }

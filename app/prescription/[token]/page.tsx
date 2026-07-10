@@ -92,7 +92,7 @@ export default async function PrescriptionSecurePage({
           href={`/api/prescription/${token}/download`}
           className="mt-6 inline-flex rounded-full bg-primary px-6 py-3 text-sm font-extrabold text-primary-foreground shadow-md"
         >
-          Download Prescription PDF
+          Download Prescription
         </a>
       </div>
     </main>

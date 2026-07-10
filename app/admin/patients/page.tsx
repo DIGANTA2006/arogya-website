@@ -9,6 +9,7 @@ type Patient = {
   phone?: string;
   age?: string;
   mobile_verified?: boolean;
+  email_verified?: boolean;
   created_at?: string;
 };
 
@@ -186,7 +187,7 @@ export default function AdminPatientsPage() {
                 Patient Details
               </p>
 
-              <div className="mt-5 grid gap-4 md:grid-cols-4">
+              <div className="mt-5 grid gap-4 md:grid-cols-2 lg:grid-cols-5">
                 <div className="rounded-2xl bg-secondary/50 p-4">
                   <p className="text-xs font-bold uppercase text-muted-foreground">
                     Name
@@ -220,6 +221,15 @@ export default function AdminPatientsPage() {
                   </p>
                   <p className="mt-1 font-black text-foreground">
                     {data.patient.mobile_verified ? "Verified" : "Not verified"}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl bg-secondary/50 p-4">
+                  <p className="text-xs font-bold uppercase text-muted-foreground">
+                    Email
+                  </p>
+                  <p className="mt-1 font-black text-foreground">
+                    {data.patient.email_verified ? "Verified" : "Not verified"}
                   </p>
                 </div>
               </div>
@@ -310,6 +320,7 @@ export default function AdminPatientsPage() {
                         <a
                           href={`/prescription/${prescription.secure_token}`}
                           target="_blank"
+                          rel="noreferrer"
                           className="rounded-full bg-primary px-4 py-2 text-xs font-extrabold text-primary-foreground"
                         >
                           Open Secure Page

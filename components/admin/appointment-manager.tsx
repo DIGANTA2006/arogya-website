@@ -71,7 +71,7 @@ function isPastAppointment(appointment: Appointment) {
 
   if (!start) return false;
 
-  const closeAt = new Date(start.getTime() + 8 * 60 * 60 * 1000);
+  const closeAt = new Date(start.getTime() + 60 * 60 * 1000);
 
   return new Date() > closeAt;
 }
@@ -102,7 +102,7 @@ function isMeetingWindowOpen(appointment: Appointment) {
 
   const now = new Date();
   const openAt = new Date(start.getTime() - 30 * 60 * 1000);
-  const closeAt = new Date(start.getTime() + 8 * 60 * 60 * 1000);
+  const closeAt = new Date(start.getTime() + 60 * 60 * 1000);
 
   return now >= openAt && now <= closeAt;
 }
@@ -184,7 +184,7 @@ export default function AppointmentManager() {
 
     for (const payment of payments) {
       const appointmentId = payment.appointmentId || payment.appointment_id
-      if (appointmentId) map.set(appointmentId, payment)
+      if (appointmentId && !map.has(appointmentId)) map.set(appointmentId, payment)
     }
 
     return map
@@ -210,8 +210,6 @@ export default function AppointmentManager() {
 
     const isOnline = isOnlineAppointmentType(appointment.appointmentType)
     const payment = paymentByAppointment.get(appointment.id)
-                  const meetingOpen = payment?.status === 'paid' && isMeetingWindowOpen(appointment)
-                  const pastAppointment = isPastAppointment(appointment)
 
     if (
       isOnline &&
@@ -241,19 +239,19 @@ export default function AppointmentManager() {
     setStatusMessage('Appointment status updated.')
   }
 
-  const totalNew = appointments.filter((item) => item.status === 'New').length
-  const totalConfirmed = appointments.filter((item) => item.status === 'Confirmed').length
   const totalCompleted = appointments.filter((item) => item.status === 'Completed').length
-  const totalOnline = appointments.filter((item) => isOnlineAppointmentType(item.appointmentType)).length
+  const activeCount = appointments.filter((item) => appointmentMatchesAdminFilter(item, 'Active')).length
+  const todayCount = appointments.filter(isTodayAppointment).length
+  const submittedPaymentCount = payments.filter((item) => item.status === 'submitted').length
 
   return (
     <div>
       <div className="mb-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          ['Total Leads', appointments.length],
-          ['New', totalNew],
+          ['Active Queue', activeCount],
+          ["Today's Visits", todayCount],
+          ['Payments to Verify', submittedPaymentCount],
           ['Completed', totalCompleted],
-          ['Online', totalOnline],
         ].map(([label, value]) => (
           <div key={label} className="rounded-3xl border border-border bg-white p-5 shadow-sm">
             <p className="text-sm text-muted-foreground">{label}</p>
@@ -369,11 +367,6 @@ export default function AppointmentManager() {
                         <p className="mt-1 text-xs text-muted-foreground">{appointment.time}</p>
                         {pastAppointment ? (
                           <p className="mt-2 inline-flex rounded-full bg-slate-100 px-2 py-1 text-[11px] font-black uppercase text-slate-600">
-                            Past appointment
-                          </p>
-                        ) : null}
-                        {pastAppointment ? (
-                          <p className="mt-2 inline-flex rounded-full bg-slate-100 px-2 py-1 text-[11px] font-black uppercase text-slate-600">
                             Past
                           </p>
                         ) : null}
@@ -407,4 +400,3 @@ export default function AppointmentManager() {
     </div>
   )
 }
-

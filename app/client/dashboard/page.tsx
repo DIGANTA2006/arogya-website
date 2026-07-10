@@ -65,7 +65,23 @@ type Profile = {
   phone: string;
   age: string;
   mobileVerified: boolean;
+  emailVerified: boolean;
 };
+
+function getIndiaDateInputValue(daysToAdd = 0) {
+  const shifted = new Date(Date.now() + daysToAdd * 24 * 60 * 60 * 1000);
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(shifted);
+
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
+  return `${year}-${month}-${day}`;
+}
 
 function isOnlineAppointmentType(value?: string) {
   const text = String(value || "").trim().toLowerCase();
@@ -100,7 +116,7 @@ function isPastAppointment(appointment: Appointment) {
 
   if (!start) return false;
 
-  const closeAt = new Date(start.getTime() + 8 * 60 * 60 * 1000);
+  const closeAt = new Date(start.getTime() + 60 * 60 * 1000);
 
   return new Date() > closeAt;
 }
@@ -111,7 +127,7 @@ function isMeetingWindowOpen(appointment: Appointment) {
 
   const now = new Date();
   const openAt = new Date(start.getTime() - 30 * 60 * 1000);
-  const closeAt = new Date(start.getTime() + 8 * 60 * 60 * 1000);
+  const closeAt = new Date(start.getTime() + 60 * 60 * 1000);
 
   return now >= openAt && now <= closeAt;
 }
@@ -138,6 +154,7 @@ export default function ClientDashboardPage() {
   const [payments, setPayments] = useState<PaymentSummary[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [status, setStatus] = useState("");
+  const [statusKind, setStatusKind] = useState<"success" | "error">("success");
   const [loading, setLoading] = useState(false);
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [slotLoading, setSlotLoading] = useState(false);
@@ -161,11 +178,40 @@ export default function ClientDashboardPage() {
 
     for (const payment of payments) {
       const appointmentId = payment.appointmentId || payment.appointment_id;
-      if (appointmentId) map.set(appointmentId, payment);
+      if (appointmentId && !map.has(appointmentId)) {
+        map.set(appointmentId, payment);
+      }
     }
 
     return map;
   }, [payments]);
+
+  const dashboardSummary = useMemo(() => {
+    const activeAppointments = appointments.filter((appointment) => {
+      const statusText = String(appointment.status || "").toLowerCase();
+      return !isPastAppointment(appointment) && !["completed", "cancelled"].includes(statusText);
+    }).length;
+    const paymentsToComplete = appointments.filter((appointment) => {
+      const statusText = String(appointment.status || "").toLowerCase();
+      const appointmentId = String(appointment.id || "");
+      return (
+        appointmentId &&
+        isOnlineAppointmentType(
+          appointment.appointmentType || appointment.appointment_type
+        ) &&
+        !isPastAppointment(appointment) &&
+        !["completed", "cancelled"].includes(statusText) &&
+        paymentByAppointment.get(appointmentId)?.status !== "paid"
+      );
+    }).length;
+
+    return {
+      activeAppointments,
+      paymentsToComplete,
+      prescriptions: prescriptions.length,
+      accountReady: Boolean(profile?.emailVerified && profile?.mobileVerified),
+    };
+  }, [appointments, paymentByAppointment, prescriptions, profile]);
 
   function updateField(
     event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -288,6 +334,7 @@ export default function ClientDashboardPage() {
     event.preventDefault();
     setLoading(true);
     setStatus("");
+    setStatusKind("success");
 
     const payload = {
       ...form,
@@ -310,11 +357,13 @@ export default function ClientDashboardPage() {
 
     if (!response.ok) {
       setStatus(data.error || "Appointment booking failed.");
+      setStatusKind("error");
       setLoading(false);
       return;
     }
 
     setStatus(data.message || "Appointment booked successfully.");
+    setStatusKind("success");
 
     setForm({
       service: "Speech Therapy Consultation",
@@ -360,6 +409,37 @@ export default function ClientDashboardPage() {
         </div>
       </header>
 
+      <section className="client-dashboard-container dashboard-overview" aria-label="Patient portal summary">
+        {[
+          { label: "Active appointments", value: dashboardSummary.activeAppointments, icon: <CalendarDays size={21} /> },
+          { label: "Payments to complete", value: dashboardSummary.paymentsToComplete, icon: <Clock size={21} /> },
+          { label: "Prescriptions", value: dashboardSummary.prescriptions, icon: <FileText size={21} /> },
+          { label: "Account security", value: dashboardSummary.accountReady ? "Ready" : "Action needed", icon: <UserRound size={21} /> },
+        ].map((item) => (
+          <article key={item.label} className="overview-card">
+            <span className="overview-icon">{item.icon}</span>
+            <div>
+              <small>{item.label}</small>
+              <strong>{item.value}</strong>
+            </div>
+          </article>
+        ))}
+      </section>
+
+      {!dashboardSummary.accountReady && profile && (
+        <section className="client-dashboard-container account-alert" role="status">
+          <div>
+            <strong>Finish account verification</strong>
+            <p>
+              Verify {profile.emailVerified ? "your mobile number" : profile.mobileVerified ? "your email" : "your email and mobile number"} before secure booking and payment.
+            </p>
+          </div>
+          <a href="/client/profile" className="dash-btn dash-btn-dark">
+            Complete Profile
+          </a>
+        </section>
+      )}
+
       <section className="client-dashboard-container dashboard-grid">
         <aside className="profile-card">
           <div className="profile-avatar">
@@ -376,11 +456,15 @@ export default function ClientDashboardPage() {
               label="Mobile OTP"
               value={profile?.mobileVerified ? "Verified" : "Not verified"}
             />
+            <InfoRow
+              label="Email"
+              value={profile?.emailVerified ? "Verified" : "Not verified"}
+            />
           </div>
 
-          {!profile?.mobileVerified && (
+          {profile && (!profile.mobileVerified || !profile.emailVerified) && (
             <div className="warning-box">
-              Google login is active. Add/verify mobile number before final patient use.
+              Complete email and mobile verification before booking or payment.
             </div>
           )}
 
@@ -425,7 +509,15 @@ export default function ClientDashboardPage() {
             <div className="two-col">
               <label>
                 Date
-                <input name="date" type="date" value={form.date} onChange={updateField} required />
+                <input
+                  name="date"
+                  type="date"
+                  min={getIndiaDateInputValue()}
+                  max={getIndiaDateInputValue(180)}
+                  value={form.date}
+                  onChange={updateField}
+                  required
+                />
               </label>
 
               <label>
@@ -465,7 +557,7 @@ export default function ClientDashboardPage() {
                   name="phone"
                   placeholder="+91XXXXXXXXXX"
                   value={form.phone}
-                  onChange={updateField}
+                  readOnly
                   required
                 />
               </label>
@@ -476,7 +568,7 @@ export default function ClientDashboardPage() {
                   name="age"
                   placeholder="Patient age"
                   value={form.age}
-                  onChange={updateField}
+                  readOnly
                 />
               </label>
             </div>
@@ -492,12 +584,20 @@ export default function ClientDashboardPage() {
               />
             </label>
 
-            <button className="dash-submit" type="submit" disabled={loading}>
-              {loading ? "Booking..." : "Book Appointment"}
+            <button
+              className="dash-submit"
+              type="submit"
+              disabled={loading || !dashboardSummary.accountReady}
+            >
+              {loading
+                ? "Booking..."
+                : dashboardSummary.accountReady
+                  ? "Book Appointment"
+                  : "Verify Account to Book"}
             </button>
 
             {status && (
-              <p className={status.toLowerCase().includes("failed") ? "status-error" : "status-ok"}>
+              <p className={statusKind === "error" ? "status-error" : "status-ok"}>
                 {status}
               </p>
             )}
@@ -629,12 +729,12 @@ export default function ClientDashboardPage() {
                       {downloadUrl && (
                         <a href={downloadUrl} className="dash-btn dash-btn-dark">
                           <Download size={15} />
-                          Download PDF
+                          Download File
                         </a>
                       )}
 
                       {qrUrl && (
-                        <a href={qrUrl} target="_blank" className="dash-btn dash-btn-light">
+                        <a href={qrUrl} target="_blank" rel="noreferrer" className="dash-btn dash-btn-light">
                           Open Secure Page
                         </a>
                       )}
@@ -722,6 +822,71 @@ export default function ClientDashboardPage() {
         .client-dashboard-container {
           width: min(1180px, calc(100% - 36px));
           margin: 0 auto;
+        }
+
+        .dashboard-overview {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 14px;
+          margin-top: 24px;
+        }
+
+        .overview-card {
+          display: flex;
+          align-items: center;
+          gap: 13px;
+          min-width: 0;
+          padding: 18px;
+          border: 1px solid rgba(186, 230, 253, 0.9);
+          border-radius: 22px;
+          background: rgba(255, 255, 255, 0.92);
+          box-shadow: 0 14px 36px rgba(15, 23, 42, 0.06);
+        }
+
+        .overview-icon {
+          display: grid;
+          width: 44px;
+          height: 44px;
+          flex: 0 0 auto;
+          place-items: center;
+          border-radius: 15px;
+          color: #0369a1;
+          background: #e0f2fe;
+        }
+
+        .overview-card small {
+          display: block;
+          color: #64748b;
+          font-size: 11px;
+          font-weight: 850;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+        }
+
+        .overview-card strong {
+          display: block;
+          margin-top: 4px;
+          overflow-wrap: anywhere;
+          font-size: 22px;
+        }
+
+        .account-alert {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 18px;
+          margin-top: 16px;
+          padding: 18px 20px;
+          border: 1px solid #fcd34d;
+          border-radius: 22px;
+          background: linear-gradient(135deg, #fffbeb, #fff7ed);
+          color: #92400e;
+        }
+
+        .account-alert p {
+          margin: 4px 0 0;
+          font-size: 14px;
+          font-weight: 650;
         }
 
         .client-dashboard-header {
@@ -946,6 +1111,12 @@ export default function ClientDashboardPage() {
           box-shadow: 0 0 0 4px rgba(2, 132, 199, 0.12);
         }
 
+        .appointment-form input[readonly] {
+          cursor: not-allowed;
+          background: #eef2f7;
+          color: #64748b;
+        }
+
         .two-col {
           display: grid;
           grid-template-columns: 1fr 1fr;
@@ -1028,6 +1199,10 @@ export default function ClientDashboardPage() {
         }
 
         @media (max-width: 980px) {
+          .dashboard-overview {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+
           .dashboard-grid {
             grid-template-columns: 1fr;
           }
@@ -1047,6 +1222,15 @@ export default function ClientDashboardPage() {
 
           .client-dashboard-header {
             padding: 24px 0;
+          }
+
+          .dashboard-overview {
+            grid-template-columns: 1fr;
+          }
+
+          .account-alert {
+            align-items: stretch;
+            flex-direction: column;
           }
 
           .profile-card,
@@ -1092,6 +1276,3 @@ function EmptyState({ text }: { text: string }) {
     </div>
   );
 }
-
-
-

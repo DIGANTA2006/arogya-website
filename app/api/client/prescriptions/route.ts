@@ -16,7 +16,16 @@ export async function GET() {
   const prescriptions = await getPrescriptions(email);
 
   const formatted = prescriptions.map((item) => ({
-    ...item,
+    id: item.id,
+    appointmentId: item.appointmentId,
+    appointment_id: item.appointmentId,
+    title: item.title,
+    createdAt: item.createdAt,
+    created_at: item.createdAt,
+    nextTherapyDate: item.nextTherapyDate,
+    next_therapy_date: item.nextTherapyDate,
+    nextAppointmentDate: item.nextAppointmentDate,
+    next_appointment_date: item.nextAppointmentDate,
     downloadUrl: `/api/prescription/${item.secureToken}/download`,
     download_url: `/api/prescription/${item.secureToken}/download`,
     securePageUrl: `/prescription/${item.secureToken}`,

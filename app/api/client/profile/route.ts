@@ -2,8 +2,18 @@ import { assertSameOrigin } from "@/lib/request-guard";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { escapeHtml } from "@/lib/html";
-import { hasPortalRole } from "@/lib/portal-auth";
+import {
+  hasPortalRole,
+  PORTAL_SESSION_MAX_AGE_SECONDS,
+} from "@/lib/portal-auth";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import { cleanPhone } from "@/lib/mobile-otp-store";
+import {
+  normalizeIndianPhone,
+  normalizePatientAge,
+  validatePatientName,
+} from "@/lib/input-validation";
+import { checkRateLimit, getRequestIp, rateLimitPayload } from "@/lib/rate-limit";
 type ProfileBody = {
   name?: string;
   age?: string;
@@ -18,7 +28,7 @@ async function getClientSession() {
   const allowed = await hasPortalRole("client");
   const cookieStore = await cookies();
 
-  const email = String(cookieStore.get("portal_email")?.value || "")
+  const email = String(cookieStore.get("portal_subject")?.value || "")
     .trim()
     .toLowerCase();
 
@@ -38,6 +48,7 @@ function mapProfile(row: any) {
     phone: row?.phone || "",
     age: row?.age || "",
     mobileVerified: Boolean(row?.mobile_verified),
+    emailVerified: Boolean(row?.email_verified),
   };
 }
 
@@ -110,7 +121,7 @@ export async function GET() {
           phone: "",
           age: "",
           mobileVerified: false,
-        emailVerified: false,
+          emailVerified: false,
         },
       });
     }
@@ -137,13 +148,14 @@ export async function PATCH(request: Request) {
 
     const body = (await request.json()) as ProfileBody;
 
-    const name = clean(body.name);
-    const age = clean(body.age);
-    const phone = clean(body.phone);
+    const name = validatePatientName(body.name);
+    const rawAge = clean(body.age);
+    const age = normalizePatientAge(rawAge);
+    const phone = normalizeIndianPhone(body.phone);
 
-    if (!name || !phone) {
+    if (!name || !phone || (rawAge && !age)) {
       return NextResponse.json(
-        { error: "Name and phone are required." },
+        { error: "Enter a valid name, age, and Indian mobile number." },
         { status: 400 }
       );
     }
@@ -161,12 +173,22 @@ export async function PATCH(request: Request) {
     }
 
     if (existing) {
+      const cookieStore = await cookies();
+      const verifiedMobile = cleanPhone(
+        cookieStore.get("verified_mobile")?.value || ""
+      );
+      const phoneChanged = cleanPhone(existing.phone || "") !== phone;
+      const mobileVerified = phoneChanged
+        ? verifiedMobile === phone
+        : Boolean(existing.mobile_verified);
+
       const { data, error } = await supabase
         .from("patients")
         .update({
           name,
           age,
           phone,
+          mobile_verified: mobileVerified,
         })
         .eq("email", session.email)
         .select("name,email,phone,age,mobile_verified,email_verified")
@@ -176,7 +198,23 @@ export async function PATCH(request: Request) {
         return NextResponse.json({ error: error.message }, { status: 500 });
       }
 
-      return NextResponse.json({ success: true, profile: mapProfile(data) });
+      const response = NextResponse.json({
+        success: true,
+        profile: mapProfile(data),
+        message: phoneChanged && !mobileVerified
+          ? "Profile saved. Verify the new mobile number before booking."
+          : "Profile updated successfully.",
+      });
+
+      response.cookies.set("portal_name", name, {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+        maxAge: PORTAL_SESSION_MAX_AGE_SECONDS,
+      });
+
+      return response;
     }
 
     const { data, error } = await supabase
@@ -187,7 +225,7 @@ export async function PATCH(request: Request) {
         phone,
         email: session.email,
         password_hash: null,
-        mobile_verified: true,
+        mobile_verified: false,
       })
       .select("name,email,phone,age,mobile_verified,email_verified")
       .single();
@@ -202,12 +240,28 @@ export async function PATCH(request: Request) {
   }
 }
 
-export async function DELETE() {
+export async function DELETE(request: Request) {
+  const originCheck = assertSameOrigin(request);
+
+  if (!originCheck.ok) {
+    return originCheck.response;
+  }
+
   try {
     const session = await getClientSession();
 
     if (!session.allowed || !session.email) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+    }
+
+    const limit = await checkRateLimit({
+      key: `client:deletion-request:${session.email}:${getRequestIp(request)}`,
+      limit: 2,
+      windowSeconds: 24 * 60 * 60,
+    });
+
+    if (!limit.allowed) {
+      return NextResponse.json(rateLimitPayload(limit), { status: 429 });
     }
 
     const supabase = getSupabaseAdmin();
@@ -225,11 +279,20 @@ export async function DELETE() {
       age: data?.age || "",
     });
 
+    if (!sent) {
+      return NextResponse.json(
+        {
+          error:
+            "The request could not be delivered. Please contact the clinic directly for deletion review.",
+        },
+        { status: 503 }
+      );
+    }
+
     return NextResponse.json({
       success: true,
-      message: sent
-        ? "Account deletion request submitted to the clinic. The clinic will review medical records before deletion."
-        : "Account deletion request noted, but email service is not configured. Please contact the clinic directly for deletion review.",
+      message:
+        "Account deletion request submitted to the clinic. The clinic will review medical records before deletion.",
     });
   } catch (error) {
     return NextResponse.json(

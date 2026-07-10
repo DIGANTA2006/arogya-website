@@ -360,6 +360,28 @@ export default function ScannerUploadPanel() {
     const prepared: ScanItem[] = [];
 
     for (const file of files) {
+      if (file.size <= 0 || file.size > 20 * 1024 * 1024) {
+        prepared.push({
+          id: crypto.randomUUID(),
+          file,
+          token: "",
+          status: "error",
+          message: "File must be non-empty and 20 MB or smaller.",
+        });
+        continue;
+      }
+
+      if (!["application/pdf", "image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+        prepared.push({
+          id: crypto.randomUUID(),
+          file,
+          token: "",
+          status: "error",
+          message: "Only PDF, JPG, PNG, and WEBP files are supported.",
+        });
+        continue;
+      }
+
       const detected = await detectTokenFromFile(file);
 
       prepared.push({
@@ -519,7 +541,7 @@ export default function ScannerUploadPanel() {
             <input
               className="field"
               type="file"
-              accept="image/*,application/pdf"
+              accept="application/pdf,image/jpeg,image/png,image/webp"
               multiple
               onChange={handleFiles}
             />
@@ -703,6 +725,7 @@ export default function ScannerUploadPanel() {
                   <a
                     href={item.securePage}
                     target="_blank"
+                    rel="noreferrer"
                     className="rounded-full bg-green-700 px-4 py-2 text-xs font-extrabold text-white"
                   >
                     Open Secure Page

@@ -64,7 +64,7 @@ function isMeetingWindowOpen(appointment?: AppointmentSummary) {
 
   const now = new Date();
   const openAt = new Date(start.getTime() - 30 * 60 * 1000);
-  const closeAt = new Date(start.getTime() + 8 * 60 * 60 * 1000);
+  const closeAt = new Date(start.getTime() + 60 * 60 * 1000);
 
   return now >= openAt && now <= closeAt;
 }
@@ -352,6 +352,7 @@ export default function AdminPaymentsPage() {
                           <a
                             href={proofUrl}
                             target="_blank"
+                            rel="noreferrer"
                             className="mt-2 inline-flex rounded-full bg-primary px-4 py-2 text-sm font-bold text-primary-foreground"
                           >
                             Open Screenshot/PDF

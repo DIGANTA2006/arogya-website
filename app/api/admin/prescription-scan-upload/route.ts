@@ -1,7 +1,10 @@
 import { assertSameOrigin } from "@/lib/request-guard";
 import { NextResponse } from "next/server";
 import { hasPortalRole } from "@/lib/portal-auth";
-import { createPrescription } from "@/lib/prescription-store";
+import {
+  createPrescription,
+  deletePrescriptionById,
+} from "@/lib/prescription-store";
 import {
   getPrescriptionVisitByToken,
   markPrescriptionVisitUploaded,
@@ -10,6 +13,7 @@ import {
   getPrescriptionVisitExpiryMessage,
   isPrescriptionVisitUploadExpired,
 } from "@/lib/rx-reliability";
+import { UploadValidationError } from "@/lib/file-validation";
 
 const MAX_UPLOAD_SIZE_BYTES = 20 * 1024 * 1024;
 
@@ -69,6 +73,15 @@ export async function POST(request: Request) {
   }
 
   try {
+    const contentLength = Number(request.headers.get("content-length") || 0);
+
+    if (contentLength > 21 * 1024 * 1024) {
+      return NextResponse.json(
+        { error: "Prescription upload is too large." },
+        { status: 413 }
+      );
+    }
+
     const formData = await request.formData();
 
     const token = clean(
@@ -157,10 +170,23 @@ export async function POST(request: Request) {
       nextAppointmentDate,
     });
 
-    const updatedVisit = await markPrescriptionVisitUploaded(visit.id, {
-      prescriptionId: prescription.id,
-      secureToken: prescription.secureToken,
-    });
+    let updatedVisit;
+
+    try {
+      updatedVisit = await markPrescriptionVisitUploaded(visit.id, {
+        prescriptionId: prescription.id,
+        secureToken: prescription.secureToken,
+      });
+    } catch (error) {
+      await deletePrescriptionById(prescription.id).catch(() => undefined);
+      throw error;
+    }
+
+    if (visit.uploadedPrescriptionId) {
+      await deletePrescriptionById(visit.uploadedPrescriptionId).catch((error) => {
+        console.error("[scanner-upload] Could not remove superseded prescription.", error);
+      });
+    }
 
     return NextResponse.json({
       success: true,
@@ -169,12 +195,17 @@ export async function POST(request: Request) {
       securePage: `/prescription/${prescription.secureToken}`,
     });
   } catch (error) {
+    const detail = error instanceof Error ? error.message : "Unknown error";
+    const inputError =
+      error instanceof UploadValidationError ||
+      /invalid|too (?:large|long)|cannot be in the past|must be/i.test(detail);
+
     return NextResponse.json(
       {
         error: "Scanned prescription upload failed.",
-        detail: error instanceof Error ? error.message : "Unknown error",
+        detail,
       },
-      { status: 500 }
+      { status: inputError ? 400 : 500 }
     );
   }
 }

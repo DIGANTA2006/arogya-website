@@ -18,7 +18,7 @@ export default function ClientProfilePage() {
     phone: "",
     age: "",
     mobileVerified: false,
-  emailVerified: false,
+    emailVerified: false,
   });
 
   const [otp, setOtp] = useState("");
@@ -111,7 +111,6 @@ export default function ClientProfilePage() {
       body: JSON.stringify({
         phone: profile.phone,
         otp,
-        email: profile.email,
       }),
     });
 
@@ -182,7 +181,7 @@ export default function ClientProfilePage() {
     }
 
     setProfile(data.profile);
-    setStatus("Profile updated successfully.");
+    setStatus(data.message || "Profile updated successfully.");
   }
 
   async function requestAccountDeletion() {
@@ -231,9 +230,14 @@ export default function ClientProfilePage() {
             </p>
           </div>
 
-          <span className="rounded-full bg-secondary px-4 py-2 text-xs font-extrabold text-foreground">
-            {profile.mobileVerified ? "Mobile Verified" : "Mobile Not Verified"}
-          </span>
+          <div className="flex flex-wrap gap-2">
+            <span className={`rounded-full px-4 py-2 text-xs font-extrabold ${profile.emailVerified ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
+              {profile.emailVerified ? "Email Verified" : "Email Not Verified"}
+            </span>
+            <span className={`rounded-full px-4 py-2 text-xs font-extrabold ${profile.mobileVerified ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
+              {profile.mobileVerified ? "Mobile Verified" : "Mobile Not Verified"}
+            </span>
+          </div>
         </div>
 
         <form onSubmit={saveProfile} className="mt-8 grid gap-4">
@@ -280,6 +284,25 @@ export default function ClientProfilePage() {
               />
             </label>
           </div>
+
+          {!profile.emailVerified && (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+              <h2 className="text-sm font-black text-amber-900">
+                Email Verification Required
+              </h2>
+              <p className="mt-1 text-sm text-amber-800">
+                Verify this account email before booking, payment, or prescription access.
+              </p>
+              <button
+                type="button"
+                onClick={resendEmailVerification}
+                disabled={loading || !profile.email}
+                className="mt-4 rounded-full bg-amber-700 px-5 py-3 text-sm font-extrabold text-white disabled:opacity-60"
+              >
+                Resend Verification Email
+              </button>
+            </div>
+          )}
 
           {!profile.mobileVerified && (
             <div className="rounded-2xl border border-orange-200 bg-orange-50 p-4">

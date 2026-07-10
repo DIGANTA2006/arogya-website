@@ -518,6 +518,7 @@ export default function PrescriptionVisitManager() {
                     <a
                       href={`/admin/prescription-visits/${visit.id}/print`}
                       target="_blank"
+                      rel="noreferrer"
                       className="rounded-full bg-primary px-4 py-2 text-xs font-extrabold text-primary-foreground"
                     >
                       Print Sheet
@@ -526,6 +527,7 @@ export default function PrescriptionVisitManager() {
                     <a
                       href={`/admin/prescription-visits/${visit.id}/write`}
                       target="_blank"
+                      rel="noreferrer"
                       className="rounded-full bg-slate-900 px-4 py-2 text-xs font-extrabold text-white"
                     >
                       Write Digitally
@@ -534,6 +536,7 @@ export default function PrescriptionVisitManager() {
                     <a
                       href={`/rx/${visit.uploadToken}`}
                       target="_blank"
+                      rel="noreferrer"
                       className="rounded-full border border-border bg-white px-4 py-2 text-xs font-extrabold text-foreground"
                     >
                       Open QR Page
@@ -555,6 +558,7 @@ export default function PrescriptionVisitManager() {
                   <a
                     href={`/prescription/${visit.uploadedPrescriptionToken}`}
                     target="_blank"
+                    rel="noreferrer"
                     className="rounded-full bg-green-600 px-4 py-2 text-xs font-extrabold text-white"
                   >
                     Open Uploaded Prescription

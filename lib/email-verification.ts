@@ -60,6 +60,12 @@ export async function createAndSendPatientEmailVerification(emailInput: string) 
   const tokenHash = hashToken(token);
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
+  await supabase
+    .from("email_verification_tokens")
+    .update({ used_at: new Date().toISOString() })
+    .eq("patient_email", email)
+    .is("used_at", null);
+
   const { error } = await supabase.from("email_verification_tokens").insert({
     patient_email: email,
     token_hash: tokenHash,

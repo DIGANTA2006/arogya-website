@@ -1,5 +1,12 @@
 ﻿# Arogya Website Production Checklist
 
+## Phase 10 Hardening (Required)
+
+- [ ] Run `supabase/PHASE_10_PRODUCTION_HARDENING.sql` once in Supabase SQL Editor
+- [ ] Confirm its duplicate diagnostics show no unresolved active-slot, payment-row, UPI-reference, or appointment-RX conflicts
+- [ ] Keep `ADMIN_2FA_ENABLED=true`; production now enforces admin email verification
+- [ ] Expect existing portal sessions to require one fresh login after the token upgrade
+
 ## Final Build Status
 
 - [x] `npm run typecheck` passed

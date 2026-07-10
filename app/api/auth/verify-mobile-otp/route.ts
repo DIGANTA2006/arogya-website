@@ -1,32 +1,21 @@
 ﻿import { assertSameOrigin } from "@/lib/request-guard";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { cleanPhone, markPatientMobileVerified } from "@/lib/mobile-otp-store";
+import { markPatientMobileVerified } from "@/lib/mobile-otp-store";
 import { checkRateLimit, getRequestIp, rateLimitPayload } from "@/lib/rate-limit";
+import { hasPortalRole } from "@/lib/portal-auth";
+import { normalizeIndianPhone } from "@/lib/input-validation";
 type Body = {
   phone?: string;
   mobile?: string;
   otp?: string;
   code?: string;
-  email?: string;
 };
 
 function toE164Indian(phoneInput: string) {
-  const phone = cleanPhone(phoneInput);
-
-  if (!phone || phone.length < 10) {
-    throw new Error("Valid mobile number is required.");
-  }
-
-  if (phone.length === 10) {
-    return `+91${phone}`;
-  }
-
-  if (phone.length === 12 && phone.startsWith("91")) {
-    return `+${phone}`;
-  }
-
-  throw new Error("Enter a valid Indian mobile number.");
+  const phone = normalizeIndianPhone(phoneInput);
+  if (!phone) throw new Error("Enter a valid Indian mobile number.");
+  return `+${phone}`;
 }
 
 function getTwilioAuthHeader() {
@@ -50,14 +39,14 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json()) as Body;
     const rawPhone = String(body.phone || body.mobile || "").trim();
-    const cleanMobile = cleanPhone(rawPhone);
+    const cleanMobile = normalizeIndianPhone(rawPhone);
     const to = toE164Indian(rawPhone);
     const code = String(body.otp || body.code || "").trim();
     const ip = getRequestIp(request);
 
-    if (!code) {
+    if (!/^\d{4,10}$/.test(code)) {
       return NextResponse.json(
-        { error: "OTP code is required." },
+        { error: "Enter a valid OTP code." },
         { status: 400 }
       );
     }
@@ -109,16 +98,17 @@ export async function POST(request: Request) {
     }
 
     const cookieStore = await cookies();
-    const portalEmail = String(cookieStore.get("portal_email")?.value || "")
+    const portalEmail = String(cookieStore.get("portal_subject")?.value || "")
       .trim()
       .toLowerCase();
 
-    const email = String(body.email || portalEmail || "")
-      .trim()
-      .toLowerCase();
+    const isLoggedInClient = await hasPortalRole("client");
 
-    if (email) {
-      await markPatientMobileVerified(email, cleanMobile).catch(() => undefined);
+    // Registration has no portal session yet, so it receives only the short-lived
+    // verified_mobile cookie. A database patient row may be updated only for the
+    // cryptographically verified session subject, never an email from the body.
+    if (isLoggedInClient && portalEmail) {
+      await markPatientMobileVerified(portalEmail, cleanMobile);
     }
 
     const result = NextResponse.json({

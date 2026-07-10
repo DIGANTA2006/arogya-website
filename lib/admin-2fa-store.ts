@@ -1,11 +1,15 @@
-import { createHash, randomInt, randomUUID } from "crypto";
+import { createHash, randomInt, randomUUID, timingSafeEqual } from "crypto";
 import { escapeHtml } from "@/lib/html";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
 function getRequiredAuthSecret() {
   const secret = process.env.AUTH_SECRET;
 
-  if (!secret || secret.length < 32) {
+  if (
+    !secret ||
+    secret.length < 32 ||
+    /generate_|change[_-]?me|your[_-]?secret/i.test(secret)
+  ) {
     throw new Error("AUTH_SECRET env var is required and must be at least 32 characters.");
   }
 
@@ -44,6 +48,12 @@ export async function createAdmin2faChallenge(input: {
   const code = generateAdmin2faCode();
   const adminEmail = normalizeEmail(input.adminEmail);
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+
+  await supabase
+    .from("admin_2fa_challenges")
+    .update({ used_at: new Date().toISOString() })
+    .eq("admin_email", adminEmail)
+    .is("used_at", null);
 
   const { error } = await supabase.from("admin_2fa_challenges").insert({
     id: challengeId,
@@ -122,7 +132,13 @@ export async function verifyAdmin2faChallenge(input: {
     code,
   });
 
-  if (expectedHash !== challenge.code_hash) {
+  const expectedBuffer = Buffer.from(expectedHash, "hex");
+  const storedBuffer = Buffer.from(String(challenge.code_hash || ""), "hex");
+
+  if (
+    expectedBuffer.length !== storedBuffer.length ||
+    !timingSafeEqual(expectedBuffer, storedBuffer)
+  ) {
     return {
       ok: false as const,
       error: "Invalid verification code.",
@@ -130,14 +146,17 @@ export async function verifyAdmin2faChallenge(input: {
     };
   }
 
-  const { error: updateError } = await supabase
+  const { data: consumed, error: updateError } = await supabase
     .from("admin_2fa_challenges")
     .update({
       used_at: new Date().toISOString(),
     })
-    .eq("id", challengeId);
+    .eq("id", challengeId)
+    .is("used_at", null)
+    .select("id")
+    .maybeSingle();
 
-  if (updateError) {
+  if (updateError || !consumed) {
     return {
       ok: false as const,
       error: "Could not complete verification.",

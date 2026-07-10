@@ -42,6 +42,13 @@ export async function GET(
     );
   }
 
+  if (appointment.status === "Cancelled" || appointment.status === "Completed") {
+    return NextResponse.json(
+      { error: "This consultation is closed." },
+      { status: 403 }
+    );
+  }
+
   if (!isMeetingWindowOpen({ date: appointment.date, time: appointment.time })) {
     return NextResponse.json(
       {
@@ -79,5 +86,7 @@ export async function GET(
     );
   }
 
-  return NextResponse.redirect(buildSecureOnlineMeetingUrl(appointment.id));
+  return NextResponse.redirect(buildSecureOnlineMeetingUrl(appointment.id), {
+    headers: { "Cache-Control": "private, no-store" },
+  });
 }

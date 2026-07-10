@@ -155,10 +155,16 @@ export async function markPatientMobileVerified(email: string, phoneInput: strin
   const phone = cleanPhone(phoneInput);
 
   if (supabase) {
-    await supabase
+    const { data, error } = await supabase
       .from("patients")
       .update({ mobile_verified: true, phone })
-      .eq("email", email.toLowerCase());
+      .eq("email", email.toLowerCase())
+      .select("id")
+      .maybeSingle();
+
+    if (error || !data) {
+      throw new Error(error?.message || "Patient account not found.");
+    }
   }
 }
 

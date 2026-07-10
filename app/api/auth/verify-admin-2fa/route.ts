@@ -1,7 +1,10 @@
 ﻿import { assertSameOrigin } from "@/lib/request-guard";
 import { NextResponse } from "next/server";
 import { verifyAdmin2faChallenge } from "@/lib/admin-2fa-store";
-import { createPortalToken } from "@/lib/portal-auth";
+import {
+  createPortalToken,
+  PORTAL_SESSION_MAX_AGE_SECONDS,
+} from "@/lib/portal-auth";
 import { checkRateLimit, getRequestIp, rateLimitPayload } from "@/lib/rate-limit";
 type VerifyBody = {
   challengeId?: string;
@@ -20,7 +23,7 @@ function setAdminCookies(
     sameSite: "lax" as const,
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: 60 * 60 * 8,
+    maxAge: PORTAL_SESSION_MAX_AGE_SECONDS,
   };
 
   response.cookies.set("portal_role", "admin", cookieOptions);

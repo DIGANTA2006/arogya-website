@@ -254,6 +254,7 @@ export default function PrescriptionManager() {
                     className="rounded-full bg-primary px-4 py-2 text-xs font-extrabold text-primary-foreground"
                     href={`/prescription/${item.secureToken}`}
                     target="_blank"
+                    rel="noreferrer"
                   >
                     Open Secure Page
                   </a>
@@ -262,6 +263,7 @@ export default function PrescriptionManager() {
                     className="rounded-full border border-border bg-white px-4 py-2 text-xs font-extrabold text-foreground"
                     href={`/api/prescription/${item.secureToken}/download`}
                     target="_blank"
+                    rel="noreferrer"
                   >
                     Download File
                   </a>

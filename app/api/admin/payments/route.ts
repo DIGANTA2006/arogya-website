@@ -95,6 +95,13 @@ export async function PATCH(request: Request) {
       );
     }
 
+    if (String(body.adminNote || "").trim().length > 1000) {
+      return NextResponse.json(
+        { error: "Admin payment note must be 1000 characters or fewer." },
+        { status: 400 }
+      );
+    }
+
     const payment = await updatePaymentStatus({
       id: body.id,
       status: body.status,

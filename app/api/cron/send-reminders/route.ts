@@ -1,24 +1,40 @@
 ﻿import { NextResponse } from "next/server";
 import { escapeHtml } from "@/lib/html";
 import { findPatientByEmail } from "@/lib/patient-store";
-import { getPrescriptions } from "@/lib/prescription-store";
+import {
+  getPrescriptions,
+  markPrescriptionReminderSent,
+} from "@/lib/prescription-store";
 import { sendSms } from "@/lib/sms";
 
 function isDue(dateValue: string) {
   if (!dateValue) return false;
 
-  const today = new Date();
-  const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  const normalize = (date: Date) => {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Kolkata",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(date);
 
-  const normalize = (date: Date) => date.toISOString().slice(0, 10);
+    const year = parts.find((part) => part.type === "year")?.value;
+    const month = parts.find((part) => part.type === "month")?.value;
+    const day = parts.find((part) => part.type === "day")?.value;
+    return `${year}-${month}-${day}`;
+  };
+
+  const today = new Date();
+  const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
 
   return dateValue === normalize(today) || dateValue === normalize(tomorrow);
 }
 
 async function sendReminderEmail(to: string, subject: string, html: string) {
   const resendApiKey = process.env.RESEND_API_KEY;
+  const fromEmail = process.env.RESEND_FROM_EMAIL;
 
-  if (!resendApiKey) return false;
+  if (!resendApiKey || !fromEmail) return false;
 
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -27,7 +43,7 @@ async function sendReminderEmail(to: string, subject: string, html: string) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: process.env.RESEND_FROM_EMAIL || "Arogya Clinic <onboarding@resend.dev>",
+      from: fromEmail,
       to: [to],
       subject,
       html,
@@ -48,13 +64,16 @@ export async function GET(request: Request) {
   const prescriptions = await getPrescriptions();
 
   const due = prescriptions.filter(
-    (item) => isDue(item.nextTherapyDate) || isDue(item.nextAppointmentDate)
+    (item) =>
+      !item.reminderSent &&
+      (isDue(item.nextTherapyDate) || isDue(item.nextAppointmentDate))
   );
 
   let emailSent = 0;
   let smsSent = 0;
 
   for (const item of due) {
+    let itemSmsSent = false;
     const dateParts = [
       item.nextTherapyDate && `Next therapy: ${item.nextTherapyDate}`,
       item.nextAppointmentDate && `Next appointment: ${item.nextAppointmentDate}`,
@@ -80,10 +99,19 @@ export async function GET(request: Request) {
           `Arogya reminder: ${datesText}. Please contact the clinic for confirmation.`
         );
 
-        if (sms.sent) smsSent += 1;
+        if (sms.sent) {
+          smsSent += 1;
+          itemSmsSent = true;
+        }
       }
     } catch {
       // Continue email reminders even if patient phone lookup fails.
+    }
+
+    if (emailOk || itemSmsSent) {
+      await markPrescriptionReminderSent(item.id).catch((error) => {
+        console.error("[reminders] Could not mark reminder as sent.", error);
+      });
     }
   }
 

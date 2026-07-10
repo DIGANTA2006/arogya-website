@@ -265,7 +265,7 @@ export default function ClientRegisterPage() {
 
             <span>
               I consent to Arogya Speech Therapy & Hearing Care collecting and using my personal and appointment information for patient account creation, appointment management, OTP verification, prescription/report access, and clinic communication. I have read the{" "}
-              <a href="/privacy-policy" target="_blank" className="font-bold text-primary">
+              <a href="/privacy-policy" target="_blank" rel="noreferrer" className="font-bold text-primary">
                 Privacy Policy
               </a>
               .

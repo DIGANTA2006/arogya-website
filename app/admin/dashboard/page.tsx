@@ -1,33 +1,4 @@
-const priorityCards = [
-  {
-    title: "Today's Appointments",
-    text: "Open the appointment CRM and handle today's physical and online consultations first.",
-    href: "/admin/appointments",
-    action: "Open Today Work",
-    tone: "bg-blue-50 text-blue-800 border-blue-100",
-  },
-  {
-    title: "Pending Online Payments",
-    text: "Verify submitted UPI references before online video consultation access is allowed.",
-    href: "/admin/payments",
-    action: "Verify Payments",
-    tone: "bg-yellow-50 text-yellow-800 border-yellow-100",
-  },
-  {
-    title: "Pending Prescriptions",
-    text: "Create RX sheets, write digitally, or upload scanned prescriptions after doctor checkup.",
-    href: "/admin/prescription-visits",
-    action: "Open RX Workflow",
-    tone: "bg-green-50 text-green-800 border-green-100",
-  },
-  {
-    title: "Patient Lookup",
-    text: "Search by email or mobile to view profile, appointments, prescriptions and history.",
-    href: "/admin/patients",
-    action: "Search Patient",
-    tone: "bg-purple-50 text-purple-800 border-purple-100",
-  },
-];
+import AdminDashboardOverview from "@/components/admin/admin-dashboard-overview";
 
 const workflowSteps = [
   {
@@ -105,8 +76,8 @@ const managementCards = [
 
 export default function AdminDashboardPage() {
   return (
-    <main className="min-h-screen bg-secondary/40">
-      <header className="border-b border-border bg-white py-5">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.14),_transparent_28%),linear-gradient(180deg,#f8fbff_0%,#f8fafc_55%,#eef6ff_100%)]">
+      <header className="sticky top-0 z-30 border-b border-white/70 bg-white/90 py-4 shadow-sm backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 sm:px-6 lg:px-8 md:flex-row md:items-center md:justify-between">
           <div>
             <strong className="text-2xl text-foreground">Admin Dashboard</strong>
@@ -137,39 +108,39 @@ export default function AdminDashboardPage() {
 
       <section className="py-10 lg:py-14">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <section className="mb-8 overflow-hidden rounded-[2rem] border border-primary/20 bg-white shadow-sm">
+          <section className="mb-8 overflow-hidden rounded-[2rem] border border-blue-200/70 bg-gradient-to-br from-slate-950 via-blue-950 to-blue-700 text-white shadow-2xl shadow-blue-950/15">
             <div className="grid gap-6 p-6 lg:grid-cols-[1.15fr_0.85fr] lg:p-8">
               <div>
-                <span className="rounded-full bg-secondary px-4 py-1 text-xs font-bold uppercase tracking-widest text-primary">
+                <span className="rounded-full border border-white/20 bg-white/10 px-4 py-1 text-xs font-bold uppercase tracking-widest text-cyan-100">
                   Clinic Control Room
                 </span>
 
-                <h1 className="mt-5 max-w-4xl text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl">
+                <h1 className="mt-5 max-w-4xl text-4xl font-extrabold tracking-tight text-white sm:text-5xl">
                   Start with today's work, then clear pending payments and prescriptions.
                 </h1>
 
-                <p className="mt-4 max-w-3xl text-base leading-relaxed text-muted-foreground">
+                <p className="mt-4 max-w-3xl text-base leading-relaxed text-blue-100">
                   The dashboard is arranged around the real clinic flow: appointment, payment, doctor checkup, prescription upload and patient history.
                 </p>
 
                 <div className="mt-6 flex flex-wrap gap-3">
                   <a
                     href="/admin/appointments"
-                    className="rounded-full bg-primary px-6 py-3 text-sm font-extrabold text-primary-foreground shadow-md"
+                    className="rounded-full bg-white px-6 py-3 text-sm font-extrabold text-blue-950 shadow-md"
                   >
                     Open Appointment CRM
                   </a>
 
                   <a
                     href="/admin/prescription-visits"
-                    className="rounded-full border border-border bg-white px-6 py-3 text-sm font-extrabold text-foreground"
+                    className="rounded-full border border-white/25 bg-white/10 px-6 py-3 text-sm font-extrabold text-white backdrop-blur"
                   >
                     Open RX Workflow
                   </a>
                 </div>
               </div>
 
-              <div className="rounded-[1.5rem] border border-blue-100 bg-blue-50 p-5 text-blue-900">
+              <div className="rounded-[1.5rem] border border-white/15 bg-white/10 p-5 text-blue-50 backdrop-blur">
                 <h2 className="text-lg font-black">Daily operating rule</h2>
                 <p className="mt-3 text-sm leading-7">
                   Completed appointments should not stay in the active work list. After doctor checkup, upload the prescription and move the RX to done. Old records should stay in history/archive, not in today's main workflow.
@@ -178,36 +149,7 @@ export default function AdminDashboardPage() {
             </div>
           </section>
 
-          <section className="mb-8">
-            <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <span className="rounded-full bg-secondary px-4 py-1 text-xs font-bold uppercase tracking-widest text-primary">
-                  Priority Queue
-                </span>
-                <h2 className="mt-4 text-3xl font-extrabold text-foreground">
-                  Handle these first
-                </h2>
-              </div>
-            </div>
-
-            <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-              {priorityCards.map((card) => (
-                <a
-                  key={card.title}
-                  href={card.href}
-                  className={`rounded-[2rem] border p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-md ${card.tone}`}
-                >
-                  <h3 className="text-xl font-black">{card.title}</h3>
-                  <p className="mt-3 min-h-[72px] text-sm leading-6 opacity-90">
-                    {card.text}
-                  </p>
-                  <span className="mt-4 inline-flex rounded-full bg-white/80 px-4 py-2 text-xs font-black">
-                    {card.action}
-                  </span>
-                </a>
-              ))}
-            </div>
-          </section>
+          <AdminDashboardOverview />
 
           <section className="mb-8 rounded-[2rem] border border-border bg-white p-6 shadow-sm">
             <div className="mb-5">

@@ -15,10 +15,18 @@ function checkClass(ok: boolean) {
 }
 
 export default function AdminSecurityPage() {
-  const authSecretOk = String(process.env.AUTH_SECRET || "").length >= 32;
-  const adminEmailOk = Boolean(process.env.ADMIN_EMAIL);
-  const adminHashOk = Boolean(process.env.ADMIN_PASSWORD_HASH);
-  const admin2faEnabled = process.env.ADMIN_2FA_ENABLED === "true";
+  const authSecret = String(process.env.AUTH_SECRET || "");
+  const adminHash = String(process.env.ADMIN_PASSWORD_HASH || "");
+  const authSecretOk =
+    authSecret.length >= 32 &&
+    !/generate_|change[_-]?me|your[_-]?secret/i.test(authSecret);
+  const adminEmailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+    String(process.env.ADMIN_EMAIL || "")
+  );
+  const adminHashOk = /^\$2[aby]\$\d{2}\$/.test(adminHash);
+  const admin2faEnabled =
+    process.env.NODE_ENV === "production" ||
+    process.env.ADMIN_2FA_ENABLED === "true";
   const emailReady = Boolean(process.env.RESEND_API_KEY && process.env.RESEND_FROM_EMAIL);
 
   const checks = [
@@ -40,7 +48,7 @@ export default function AdminSecurityPage() {
     {
       title: "Admin email verification",
       ok: admin2faEnabled,
-      text: "ADMIN_2FA_ENABLED=true turns on admin verification code by email.",
+      text: "Admin verification code by email is mandatory in production.",
     },
     {
       title: "Email sender ready",
@@ -92,7 +100,7 @@ export default function AdminSecurityPage() {
             </h1>
 
             <p className="mt-4 max-w-3xl text-sm leading-7 text-muted-foreground">
-              Admin login uses a hashed password, signed HTTP-only portal cookies, same-origin request checks, rate limiting and optional email verification code when 2FA is enabled.
+              Admin login uses a hashed password, expiring signed HTTP-only portal cookies, same-origin request checks, rate limiting and mandatory production email verification.
             </p>
           </div>
 
@@ -123,7 +131,7 @@ export default function AdminSecurityPage() {
             <ol className="mt-4 grid gap-3 text-sm leading-7">
               <li>1. Open /admin/dashboard in incognito. It must redirect to /admin/login.</li>
               <li>2. Try a wrong admin password. It must reject the login.</li>
-              <li>3. If ADMIN_2FA_ENABLED=true, correct password should send an email code and dashboard should stay locked until the code is verified.</li>
+              <li>3. In production, the correct password must send an email code and the dashboard must stay locked until that code is verified.</li>
               <li>4. Never share admin password, OTP, verification code or email code with anyone.</li>
             </ol>
           </div>

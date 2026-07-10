@@ -5,13 +5,26 @@ import {
   normalizeTime,
   validateAppointmentSlot,
 } from "@/lib/appointment-slots";
-import { addAppointment, getAppointments } from "@/lib/appointment-store";
+import { addAppointment, getAppointmentsForPatient } from "@/lib/appointment-store";
 import { sendAppointmentEmails } from "@/lib/appointment-email";
 
 import { requireVerifiedPatientEmail } from "@/lib/email-verification";
 import { findPatientByEmail } from "@/lib/patient-store";
 import { createPrescriptionVisit } from "@/lib/prescription-visit-store";
 import { hasPortalRole } from "@/lib/portal-auth";
+import { normalizeIndianPhone, normalizePatientAge } from "@/lib/input-validation";
+
+const ALLOWED_APPOINTMENT_TYPES = new Set([
+  "Physical Clinic Visit",
+  "Online Video Consultation",
+]);
+
+const ALLOWED_SERVICES = new Set([
+  "Speech Therapy Consultation",
+  "Hearing Test",
+  "Hearing Aid Consultation",
+  "Online Follow-up Consultation",
+]);
 type Body = {
   age?: string;
   phone?: string;
@@ -36,14 +49,8 @@ export async function GET() {
   const cookieStore = await cookies();
   const email = cookieStore.get("portal_email")?.value || "";
 
-  const appointments = await getAppointments();
-
-  return NextResponse.json({
-    appointments: appointments.filter(
-      (appointment) =>
-        appointment.email.toLowerCase() === email.toLowerCase()
-    ),
-  });
+  const appointments = await getAppointmentsForPatient(email);
+  return NextResponse.json({ appointments });
 }
 
 export async function POST(request: Request) {
@@ -94,8 +101,8 @@ export async function POST(request: Request) {
 
     const body = (await request.json()) as Body;
 
-    const age = clean(body.age || patient?.age || "");
-    const phone = clean(body.phone || patient?.phone || "");
+    const age = normalizePatientAge(patient?.age || body.age || "");
+    const phone = normalizeIndianPhone(patient?.phone || "");
     const service = clean(body.service);
     const appointmentType = clean(body.appointmentType || "Clinic Visit");
     const date = clean(body.date);
@@ -104,7 +111,21 @@ export async function POST(request: Request) {
 
     if (!service || !date || !time || !phone) {
       return NextResponse.json(
-        { error: "Service, phone, date and time are required." },
+        { error: "Complete and verify your profile, then choose service, date and time." },
+        { status: 400 }
+      );
+    }
+
+    if (!ALLOWED_SERVICES.has(service) || !ALLOWED_APPOINTMENT_TYPES.has(appointmentType)) {
+      return NextResponse.json(
+        { error: "Choose a valid clinic service and appointment type." },
+        { status: 400 }
+      );
+    }
+
+    if (message.length > 1000) {
+      return NextResponse.json(
+        { error: "Appointment note must be 1000 characters or fewer." },
         { status: 400 }
       );
     }
@@ -146,7 +167,11 @@ export async function POST(request: Request) {
         appointmentId: appointment.id,
         appointmentType: appointment.appointmentType,
       });
-    } catch {
+    } catch (error) {
+      console.error(
+        `[appointments] RX visit creation failed for appointment ${appointment.id}.`,
+        error
+      );
       prescriptionVisit = null;
     }
 
@@ -173,6 +198,7 @@ export async function POST(request: Request) {
       appointmentId: appointment.id,
       prescriptionVisitId: prescriptionVisit ? prescriptionVisit.id : null,
       rxNumber: prescriptionVisit ? prescriptionVisit.rxNumber : null,
+      rxPending: !prescriptionVisit,
       meetingLink: null,
       requiresOnlinePayment,
       message: requiresOnlinePayment
@@ -180,14 +206,16 @@ export async function POST(request: Request) {
         : "Appointment booked successfully. Confirmation email has been sent.",
     });
   } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Appointment booking failed. Please try again.";
+
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Appointment booking failed. Please try again.",
+        error: message,
       },
-      { status: 500 }
+      { status: message.toLowerCase().includes("just booked") ? 409 : 500 }
     );
   }
 }
