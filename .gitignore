@@ -17,3 +17,4 @@ node_modules/
 _backup_*/
 *.bak
 .vercel
+.env.development
